@@ -62,3 +62,38 @@ export async function seed(env, { adminPinHash = null } = {}) {
   await add('加藤 六', 'カトウ ロク', 'ろく', '火1C');
   return { term, slots, ga, admin, groups, students };
 }
+
+/**
+ * API を呼ぶ。cookie は前回の応答の cookie（文字列）を渡す。
+ * 戻り値：{ status, body, cookie, res }
+ */
+export async function call(env, method, path, body, cookie) {
+  const { handle } = await import('../src/app.js');
+  const headers = { 'X-Requested-With': 'koshu' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (cookie) headers.Cookie = cookie;
+  const res = await handle(new Request(`http://localhost${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), env);
+  const set = res.headers.get('Set-Cookie');
+  const text = await res.text();
+  let parsed = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {}
+  return { status: res.status, body: parsed, cookie: set ? set.split(';')[0] : cookie, res, text };
+}
+
+/** GA としてログインした cookie を返す */
+export async function loginGa(env, staffId) {
+  const r = await call(env, 'POST', '/api/login', { staffId });
+  if (r.status !== 200) throw new Error(`loginGa failed ${r.status} ${JSON.stringify(r.body)}`);
+  return r.cookie;
+}
+
+/** 管理者（暗証番号 1234）を用意してログインした cookie を返す */
+export async function loginAdmin(env, f) {
+  const { hashPin } = await import('../src/lib/crypto.js');
+  await env.db.query('update staff set pin_hash=$1 where id=$2', [await hashPin(env, '1234'), f.admin.id]);
+  const r = await call(env, 'POST', '/api/admin/login', { staffId: f.admin.id, pin: '1234' });
+  if (r.status !== 200) throw new Error(`loginAdmin failed ${r.status} ${JSON.stringify(r.body)}`);
+  return r.cookie;
+}

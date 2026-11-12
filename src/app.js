@@ -1,9 +1,11 @@
 // API の入口：Web 標準の Request を受け取り Response を返す。
 import { json, errorResponse, assertSameOrigin, HttpError } from './lib/http.js';
+import * as auth from './routes/auth.js';
 
 // [メソッド, パス(正規表現), 処理(env, req, match)]
 export const ROUTES = [
   ['GET', /^\/api\/health$/, async () => json({ ok: true })],
+  ...auth.routes,
 ];
 
 export function addRoutes(list) {
