@@ -78,14 +78,18 @@ export async function createNeonDb(connectionString) {
 /** migrations/*.sql を名前順に、未適用分だけ実行する。 */
 export async function migrate(db) {
   await db.exec(`create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())`);
-  const done = new Set((await db.query('select name from schema_migrations')).map(r => r.name));
   const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
-  for (const f of files) {
-    if (done.has(f)) continue;
-    const sql = readFileSync(join(MIGRATIONS_DIR, f), 'utf8');
-    await db.tx(async t => {
-      await t.exec(sql);
+  const applied = async q => new Set((await q.query('select name from schema_migrations')).map(r => r.name));
+  const applied0 = await applied(db);
+  if (files.every(f => applied0.has(f))) return;
+  // 2つのサーバーが同時に起動しても二重に適用しないよう、ロックを取ってから確かめ直す
+  await db.tx(async t => {
+    await t.query('select pg_advisory_xact_lock(727274001)');
+    const done = await applied(t);
+    for (const f of files) {
+      if (done.has(f)) continue;
+      await t.exec(readFileSync(join(MIGRATIONS_DIR, f), 'utf8'));
       await t.query('insert into schema_migrations(name) values ($1)', [f]);
-    });
-  }
+    }
+  });
 }

@@ -3,12 +3,16 @@
 //   DEV_SEED=1 npm run dev → 架空のデータ入り（管理者「管理者」／暗証番号 1234）
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname, normalize, extname } from 'node:path';
 import { handle } from '../src/app.js';
 import { createPgliteDb, migrate } from '../src/db.js';
 
 const PUBLIC = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+// 本番（vercel.json）と同じセキュリティヘッダーを付ける。CSP 違反を手元の画面テストで見つけられるようにするため。
+const VERCEL = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'vercel.json'), 'utf8'));
+const SECURITY = Object.fromEntries(VERCEL.headers[0].headers.map(h => [h.key, h.value]));
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 
 function memoryBlob() {
@@ -36,7 +40,7 @@ async function serveStatic(pathname, res) {
   if (!file.startsWith(PUBLIC)) return false;
   try {
     const body = await readFile(file);
-    res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    res.writeHead(200, { ...SECURITY, 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(body);
     return true;
   } catch {

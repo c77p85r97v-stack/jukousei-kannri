@@ -26,6 +26,7 @@ async function check(name, fn) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
+  ctx.on('console', m => m.type() === 'error' && /Content Security Policy/i.test(m.text()) && errors.push(m.text()));
   try {
     await Promise.race([fn(page, ctx), new Promise((_, rej) => setTimeout(() => rej(new Error("時間切れ（20秒）")), 20000))]);
     assert.deepEqual(errors, [], '画面でエラーが出ている');
