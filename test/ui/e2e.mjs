@@ -22,11 +22,12 @@ const browser = await chromium.launch();
 const results = [];
 async function check(name, fn) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  ctx.setDefaultTimeout(8000);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   try {
-    await fn(page, ctx);
+    await Promise.race([fn(page, ctx), new Promise((_, rej) => setTimeout(() => rej(new Error("時間切れ（20秒）")), 20000))]);
     assert.deepEqual(errors, [], '画面でエラーが出ている');
     results.push(['ok', name]);
   } catch (e) {

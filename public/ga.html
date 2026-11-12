@@ -4,12 +4,59 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>PC講習会 受講生管理</title>
+<title>記録入力｜PC講習会 受講生管理</title>
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<header class="top"><div class="brand">PC講習会<small>受講生管理</small></div></header>
-<main class="wrap"></main>
+<header class="top">
+  <div class="brand">PC講習会<small>受講生管理</small></div>
+  <div class="who">
+    <span id="whoName"></span>
+    <a class="button small" id="toAdmin" href="/admin.html" hidden>管理画面へ</a>
+    <button type="button" class="small" id="logout">ログアウト</button>
+  </div>
+</header>
+<main class="wrap">
+  <p class="error" id="pageError" role="alert"></p>
+  <nav class="tabs no-print" id="tabs" hidden>
+    <button type="button" data-tab="entryTab" class="on">記録入力</button>
+    <button type="button" data-tab="searchTab">受講生を探す</button>
+    <button type="button" data-tab="rosterTab">名簿（印刷）</button>
+    <button type="button" data-tab="statsTab">集計</button>
+  </nav>
+
+  <section id="entryTab" hidden>
+    <div class="bar" id="slotBar"></div>
+    <div class="bar" id="roundBar"></div>
+    <p class="note">数字を入れて Enter で下の行へ進み、その行が自動で保存されます。欠席の人は「補講」を押して、受ける場所を選んでください（△が自動で付きます）。</p>
+    <div id="entry" class="entry"></div>
+  </section>
+  <section id="searchTab" hidden></section>
+  <section id="rosterTab" hidden><div id="rosterView"></div></section>
+  <section id="statsTab" hidden><div id="statsView"></div></section>
+</main>
+
+<dialog id="mkDialog">
+  <form class="dlg" method="dialog" id="mkForm">
+    <h3 id="mkTitle">補講</h3>
+    <p class="note">受ける場所を1つ選んでください。あとから変えられます。</p>
+    <label class="inline"><input type="radio" name="place" value="他班" id="mkOther"> ほかの班で受ける</label>
+    <div class="bar" style="margin:6px 0 10px 24px">
+      <label class="inline">コマ <select id="mkSlot"></select></label>
+      <label class="inline">班（GA） <select id="mkGroup"></select></label>
+    </div>
+    <label class="inline"><input type="radio" name="place" value="個別"> 個別補講で受ける</label><br>
+    <label class="inline" style="margin-top:10px"><input type="radio" name="place" value="未定"> まだ決まっていない</label>
+    <p class="error" id="mkError" role="alert"></p>
+    <div class="actions">
+      <button type="button" id="mkCancel">やめる</button>
+      <button type="submit" class="primary" id="mkOk">決定</button>
+    </div>
+  </form>
+</dialog>
+
 <script src="/js/api.js"></script>
+<script src="/js/views.js"></script>
+<script src="/js/ga.js"></script>
 </body>
 </html>
