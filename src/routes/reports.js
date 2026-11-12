@@ -156,6 +156,7 @@ async function statsCsv(env, req) {
     ['初期受講生数', st.initialCount],
     ['解約者数', st.withdrawn],
     ['継続率', pct(st.retentionRate)],
+    ['継続率（最初の回から未受講の解約を除く）', pct(st.retentionRateExclNeverAttended)],
     ['解約率', pct(st.withdrawalRate)],
     ['コマ移動数', st.transfers],
     [],

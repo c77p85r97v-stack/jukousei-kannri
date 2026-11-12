@@ -48,8 +48,11 @@ export async function computeStats(db, termId) {
     withdrawnBySlot[w.code] = (withdrawnBySlot[w.code] || 0) + 1;
     withdrawnByRound[w.from_round] = (withdrawnByRound[w.from_round] || 0) + 1;
   }
-  const initialCount = term.initial_count ?? (rounds.length ? attendanceRate[rounds[0]].enrolled : 0);
+  // 初期受講生数：設定があればそれ、なければ登録されている受講生の人数（最初の回の前に解約した人も含む）
+  const initialCount = term.initial_count ?? byStudent.size;
   const withdrawn = wd.length;
+  // 最初の回から一度も受けずに解約した人（旧シートの「第1回未受講者」）
+  const neverAttended = rounds.length ? withdrawnByRound[rounds[0]] || 0 : 0;
 
   // コマ移動
   const tr = await db.query(
@@ -114,6 +117,8 @@ export async function computeStats(db, termId) {
     withdrawn,
     retentionRate: ratio(initialCount - withdrawn, initialCount),
     withdrawalRate: ratio(withdrawn, initialCount),
+    neverAttended,
+    retentionRateExclNeverAttended: ratio(initialCount - (withdrawn - neverAttended), initialCount),
     withdrawnBySlot,
     withdrawnByRound,
     transfers: tr.length,

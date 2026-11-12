@@ -127,7 +127,7 @@
         const codes = boot.slots.map(s => s.code);
         root.replaceChildren(
           h('div', { class: 'bar no-print' }, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: load }, '更新'), h('a', { class: 'button', href: `/api/export/stats.csv?termId=${boot.term.id}` }, '集計を CSV で保存'), h('a', { class: 'button', href: `/api/export/records.csv?termId=${boot.term.id}` }, '全記録を CSV で保存')),
-          h('div', { class: 'kpis' }, kpi('初期受講生数', st.initialCount), kpi('解約者数', st.withdrawn), kpi('継続率', pct(st.retentionRate)), kpi('解約率', pct(st.withdrawalRate)), kpi('コマ移動数', st.transfers)),
+          h('div', { class: 'kpis' }, kpi('初期受講生数', st.initialCount), kpi('解約者数', st.withdrawn), kpi('継続率', pct(st.retentionRate)), kpi('継続率（最初の回から未受講の解約を除く）', pct(st.retentionRateExclNeverAttended)), kpi('解約率', pct(st.withdrawalRate)), kpi('コマ移動数', st.transfers)),
           h(
             'section',
             { class: 'card' },

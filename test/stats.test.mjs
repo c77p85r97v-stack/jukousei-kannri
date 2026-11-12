@@ -96,3 +96,16 @@ test('GET /api/stats is available to GA', async () => {
   assert.equal(r.body.withdrawn, 2);
   assert.equal((await call(env, 'GET', `/api/stats?termId=${f.term.id}`)).status, 401);
 });
+
+test('retention excluding students who never attended the first round (旧シートと同じ計算)', async () => {
+  const { env, f, s } = await setup();
+  // 追加で1人、最初の回（第0回）から未受講で解約
+  await env.db.query('insert into withdrawals(student_id, from_round) values ($1, 0)', [s('追加 4').id]);
+  const st = await computeStats(env.db, f.term.id);
+  // 初期受講生数は「解約者も含めた全員」＝10
+  assert.equal(st.initialCount, 10);
+  assert.equal(st.withdrawn, 3);
+  assert.equal(st.retentionRate, 0.7);
+  assert.equal(st.neverAttended, 1);
+  assert.equal(st.retentionRateExclNeverAttended, 0.8);
+});

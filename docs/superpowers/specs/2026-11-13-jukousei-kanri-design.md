@@ -54,7 +54,7 @@ Neon（Postgres）  ── 毎日 3:00 バックアップ ──► Vercel Blob�
 
 | 表 | 主な列 | 制約 |
 |---|---|---|
-| `terms`（年度） | id, name（例：2026年度PC講習会）, rounds（例：0〜8）, typing_rounds（例：1〜8）, quiz_rounds（例：{0,8}）, initial_count（初期受講生数。空なら第0回時点の在籍数）, active | active な年度は1つ |
+| `terms`（年度） | id, name（例：2026年度PC講習会）, rounds（例：0〜8）, typing_rounds（例：1〜8）, quiz_rounds（例：{0,8}）, initial_count（初期受講生数。空なら登録されている受講生の人数。最初の回の前に解約した人も含む）, active | active な年度は1つ |
 | `slots`（コマ） | id, term_id, code（月・火1・火2・水1・水2・木1・木2・金1・金2）, sort | (term_id, code) 一意 |
 | `staff`（スタッフ） | id, name, role（`ga` / `admin`）, pin_hash（管理者のみ）, failed_logins, locked_until, active | name 一意 |
 | `groups`（班） | id, slot_id, ga_id（担当 GA）, sort | (slot_id, ga_id) 一意 |
@@ -64,7 +64,6 @@ Neon（Postgres）  ── 毎日 3:00 バックアップ ──► Vercel Blob�
 | `withdrawals`（解約） | id, student_id, from_round（未受講回＝この回から受けていない）, reason, manager_checked_by（受講生管理の確認者）, staff_confirmed（職員確認）, created_by | student_id 一意 |
 | `transfers`（コマ移動） | id, student_id, from_group_id, to_group_id, from_round（移動後に受講する最初の回）, manager_checked_by, created_by | — |
 | `audit_log`（操作履歴） | id, at, operator_id, action, target_table, target_id, before_json, after_json | — |
-| `backups_meta` | id, at, blob_key, size, kind（自動 / 手動 / 復元前 / 初期化前） | — |
 
 ### 出欠区分（`records.attendance`）
 自由記述をやめ、次から選ぶ。メモ欄（note）は自由記述のまま残す。
@@ -102,6 +101,7 @@ Neon（Postgres）  ── 毎日 3:00 バックアップ ──► Vercel Blob�
 | 班人数 | 名簿の決まり方 1〜2 の人数（補講で来る人は含めない） |
 | 解約者数 | `withdrawals` の件数（コマ別、未受講回別） |
 | 継続率 | (初期受講生数 − 解約者数) ÷ 初期受講生数 |
+| 継続率（最初の回から未受講の解約を除く） | (初期受講生数 −（解約者数 − 最初の回から未受講の解約者数）) ÷ 初期受講生数。旧スプレッドシートの「継続率（第1回未受講者は除く）」と同じ計算。両方を表示する |
 | 解約率 | 解約者数 ÷ 初期受講生数 |
 | 各回の受講率 | その回の在籍者のうち、出欠区分が出席系（`出席` / `出席・記録なし` / `記録なし` / `時間切れ`）の人 ÷ その回の在籍者 |
 | コマ移動数 | `transfers` の件数（移動元・移動先別） |
@@ -169,7 +169,7 @@ Neon（Postgres）  ── 毎日 3:00 バックアップ ──► Vercel Blob�
 
 ## 7. バックアップと復元
 
-- 毎日 3:00（日本時間）に Vercel Cron で全表を JSON にして Vercel Blob（非公開）へ保存。30日分。
+- 毎日 3:00（日本時間）に Vercel Cron で全表を JSON にして Vercel Blob（非公開）へ保存。30日分。バックアップの一覧は Blob 自体から作る（データベースが壊れても一覧が残るように、表では持たない）。
 - 管理画面から手動バックアップ・ダウンロード・復元。復元の直前に自動でバックアップを取る。
 - すべての変更は操作履歴に変更前・変更後を残す。
 
