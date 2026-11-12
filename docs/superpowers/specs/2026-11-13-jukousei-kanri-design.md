@@ -64,7 +64,7 @@ Neon（Postgres）  ── 毎日 3:00 バックアップ ──► Vercel Blob�
 | `withdrawals`（解約） | id, student_id, from_round（未受講回＝この回から受けていない）, reason, manager_checked_by（受講生管理の確認者）, staff_confirmed（職員確認）, created_by | student_id 一意 |
 | `transfers`（コマ移動） | id, student_id, from_group_id, to_group_id, from_round（移動後に受講する最初の回）, manager_checked_by, created_by | — |
 | `audit_log`（操作履歴） | id, at, operator_id, action, target_table, target_id, before_json, after_json | — |
-| `backups_meta` | id, at, blob_key, size, kind（自動 / 手動 / 復元前） | — |
+| `backups_meta` | id, at, blob_key, size, kind（自動 / 手動 / 復元前 / 初期化前） | — |
 
 ### 出欠区分（`records.attendance`）
 自由記述をやめ、次から選ぶ。メモ欄（note）は自由記述のまま残す。
