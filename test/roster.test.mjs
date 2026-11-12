@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed } from './helpers.mjs';
+import { newEnv, seed, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 import { rosterFor, isEnrolled } from '../src/domain/roster.js';
 
 async function setup() {
@@ -117,4 +119,13 @@ test('slot with 60 students returns within 300ms on PGlite', async () => {
   const ms = performance.now() - t0;
   assert.equal(g[0].members.length + g[1].members.length, 60);
   assert.ok(ms < 300, `${ms}ms`);
+});
+
+test('student who transfers into the group hosting their makeup is listed once (as a member)', async () => {
+  const { env, f, s, roster, names } = await setup();
+  await env.db.query(`insert into makeups(student_id, round, place, host_group_id) values ($1, 4, '他班', $2)`, [s('江藤').id, f.groups['月A'].id]);
+  await env.db.query('insert into transfers(student_id, from_group_id, to_group_id, from_round) values ($1,$2,$3,3)', [s('江藤').id, f.groups['月B'].id, f.groups['月A'].id]);
+  const g = await roster('月', 4);
+  assert.deepEqual(names(g, 'A'), ['青木', '井上', '上田', '江藤']);
+  assert.deepEqual(names(g, 'A', 'guests'), []);
 });

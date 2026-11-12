@@ -51,8 +51,13 @@
   const str = v => (v == null ? '' : String(v));
 
   async function load(slotId, round) {
-    const seq = ++loadSeq;
     await flushAll();
+    // 保存できていない行が残っているときは、表を作り直さない（入力が消えてしまうため）
+    if (rows.some(r => r.saving || r.tr.dataset.state === 'failed' || Object.keys(diff(r)).length)) {
+      toast('保存できていない行があります。赤い行の「再送」を押すか、内容を直してから切り替えてください', true);
+      return false;
+    }
+    const seq = ++loadSeq;
     delete entry.dataset.loaded;
     try {
       const data = await api.get(`/api/roster?slotId=${slotId}&round=${round}`);
@@ -187,7 +192,10 @@
       return row.saving;
     }
     const patch = diff(row);
-    if (!Object.keys(patch).length) return Promise.resolve();
+    if (!Object.keys(patch).length) {
+      if (row.tr.dataset.state === 'failed') setState(row, 'idle'); // 入力を元に戻したので、赤い表示を消す
+      return Promise.resolve();
+    }
     const key = JSON.stringify(patch);
     const requestId = row.retry && row.retry.key === key ? row.retry.id : newId();
     setState(row, 'saving');
@@ -197,9 +205,16 @@
         row.retry = null;
         // 送ってから利用者がさらに打ち込んだ欄は、打ち込んだ内容を残す
         const typed = { typing: row.typing?.value.trim(), quiz: row.quiz?.value.trim(), note: row.note.value.trim(), attendance: row.att.value };
+        const before = { ...row.saved }; // 送る前にサーバーにあった値
         applyRecord(row, res.record);
-        for (const k of ['typing', 'quiz', 'note']) if (row[k] && k in patch && typed[k] !== patch[k]) row[k].value = typed[k];
-        for (const k of ['typing', 'quiz', 'note']) if (row[k] && !(k in patch) && typed[k] !== row.saved[k]) row[k].value = typed[k];
+        for (const k of ['typing', 'quiz', 'note']) {
+          if (!row[k]) continue;
+          const changedSince = k in patch ? typed[k] !== patch[k] : typed[k] !== before[k];
+          if (changedSince) row[k].value = typed[k];
+        }
+        // 出欠も同じ：送ったあとで選び直していたら、選び直したほうを残す（このあと自動でもう一度保存される）
+        const attChanged = 'attendance' in patch ? typed.attendance !== patch.attendance : typed.attendance !== before.attendance;
+        if (attChanged && !AUTO_LABEL[typed.attendance]) row.att.value = typed.attendance;
         setState(row, 'saved');
         if (row.makeup) {
           row.makeup = { ...row.makeup, status: ['出席', '出席・記録なし', '記録なし', '時間切れ'].includes(res.record.attendance) ? '済' : row.makeup.failed ? 'できず' : row.makeup.place === '未定' ? '未定' : '予定' };
@@ -220,7 +235,7 @@
       } finally {
         row.saving = null;
       }
-      if (row.again) {
+      if (row.again || (row.tr.dataset.state === 'saved' && Object.keys(diff(row)).length)) {
         row.again = false;
         return save(row);
       }

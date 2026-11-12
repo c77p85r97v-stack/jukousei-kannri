@@ -39,13 +39,19 @@
       for (const b of slotSeg.children) b.classList.toggle('on', b.dataset.slot === String(slotId));
       for (const b of roundSeg.children) b.classList.toggle('on', Number(b.dataset.round) === round);
     };
-    const set = (s, r) => {
+    // onChange が false を返したら（保存できていない行があるなど）、選択を元に戻す
+    const set = async (s, r) => {
+      const prev = [slotId, round];
       slotId = s;
       round = r;
+      paint();
+      if ((await onChange(slotId, round)) === false) {
+        [slotId, round] = prev;
+        paint();
+        return;
+      }
       if (s !== 'all') memo.set('slot', s);
       memo.set('round', r);
-      paint();
-      onChange(slotId, round);
     };
     for (const s of boot.slots) slotSeg.append(h('button', { type: 'button', dataset: { slot: s.id }, onclick: () => set(s.id, round) }, s.code));
     if (allSlots) slotSeg.append(h('button', { type: 'button', dataset: { slot: 'all' }, onclick: () => set('all', round) }, 'すべて'));

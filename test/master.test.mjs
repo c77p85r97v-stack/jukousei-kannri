@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed, call, loginGa, loginAdmin, SLOT_CODES } from './helpers.mjs';
+import { newEnv, seed, call, loginGa, loginAdmin, SLOT_CODES, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 
 test('creating a term creates 9 slots in fixed order', async () => {
   const env = await newEnv();

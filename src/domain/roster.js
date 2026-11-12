@@ -53,6 +53,7 @@ export async function rosterRows(db, { termId, round, groupIds }) {
         select c.*, 'guest' as kind, m.host_group_id as shown_group
           from cur c join makeups m on m.student_id = c.id and m.round = $2
          where m.place = '他班' and not m.failed and m.host_group_id = any($3::int[])
+           and m.host_group_id <> c.cg -- 補講先の班に移動してきた人は、班員として1回だけ出す
      )
      select l.*, hs.code as home_slot, hga.name as home_ga,
             r.attendance, r.typing, r.quiz, r.note, r.version as rversion,

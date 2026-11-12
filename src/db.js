@@ -39,10 +39,10 @@ export async function createPgliteDb() {
   return db;
 }
 
-/** Neon（本番）。 */
-export async function createNeonDb(connectionString) {
-  const { Pool } = await import('@neondatabase/serverless');
-  const pool = new Pool({ connectionString });
+/** node-postgres 互換の Pool（Neon も pg も同じ形）を、このアプリの Db に包む。 */
+export function wrapPool(pool) {
+  // 使っていない接続が切れると Pool が 'error' を出す。受け取らないとプロセスごと落ちるので、記録だけして続ける。
+  pool.on('error', e => console.error('koshu pg idle connection error:', e && e.message));
   const wrap = runner => ({
     async query(sql, params = []) {
       const r = await runner.query(sql, params);
@@ -53,6 +53,7 @@ export async function createNeonDb(connectionString) {
     },
   });
   const db = wrap(pool);
+  db.pool = pool;
   db.tx = async fn => {
     const client = await pool.connect();
     const inner = wrap(client);
@@ -75,16 +76,29 @@ export async function createNeonDb(connectionString) {
   return db;
 }
 
+/** Neon（本番）。 */
+export async function createNeonDb(connectionString) {
+  const { Pool } = await import('@neondatabase/serverless');
+  return wrapPool(new Pool({ connectionString }));
+}
+
+/** ふつうの Postgres（同時実行のテスト用）。options は「-c search_path=...」など。 */
+export async function createPgDb(connectionString, options) {
+  const { default: pg } = await import('pg');
+  return wrapPool(new pg.Pool({ connectionString, options, max: 10 }));
+}
+
 /** migrations/*.sql を名前順に、未適用分だけ実行する。 */
 export async function migrate(db) {
-  await db.exec(`create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())`);
   const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
   const applied = async q => new Set((await q.query('select name from schema_migrations')).map(r => r.name));
-  const applied0 = await applied(db);
-  if (files.every(f => applied0.has(f))) return;
+  // ふだんの起動：適用済みかを1〜2回の問い合わせで確かめて終わる
+  const [reg] = await db.query(`select to_regclass('schema_migrations') as t`);
+  if (reg.t && files.every((set => f => set.has(f))(await applied(db)))) return;
   // 2つのサーバーが同時に起動しても二重に適用しないよう、ロックを取ってから確かめ直す
   await db.tx(async t => {
     await t.query('select pg_advisory_xact_lock(727274001)');
+    await t.exec(`create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())`);
     const done = await applied(t);
     for (const f of files) {
       if (done.has(f)) continue;

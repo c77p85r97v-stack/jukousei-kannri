@@ -12,8 +12,13 @@ const KINDS = { auto: '自動', manual: '手動', 'pre-restore': '復元前', 'p
 const KEEP_DAYS = 30;
 
 export async function dumpAll(db) {
-  const tables = {};
-  for (const t of TABLES) tables[t] = await db.query(`select * from ${t} order by id`);
+  // 1つのトランザクション（同じ時点の写し）で全表を読む。途中で追加された行が混ざって、親のない行ができないようにする。
+  const tables = await db.tx(async t => {
+    await t.exec('set transaction isolation level repeatable read read only');
+    const out = {};
+    for (const name of TABLES) out[name] = await t.query(`select * from ${name} order by id`);
+    return out;
+  });
   return JSON.parse(JSON.stringify({ version: 1, at: new Date().toISOString(), tables }));
 }
 

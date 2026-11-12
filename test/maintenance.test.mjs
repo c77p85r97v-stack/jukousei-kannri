@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed, call, loginGa, loginAdmin, memoryBlob } from './helpers.mjs';
+import { newEnv, seed, call, loginGa, loginAdmin, memoryBlob, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 import { dumpAll } from '../src/routes/maintenance.js';
 
 async function setup() {
@@ -138,4 +140,25 @@ test('cron makes 自動 backup and deletes 自動 backups older than 30 days onl
   const list = await call(env, 'GET', '/api/admin/backups', undefined, admin);
   assert.deepEqual(list.body.map(x => x.kind).sort(), ['手動', '自動'].sort());
   assert.ok(list.body.some(x => x.key === manual.body.key));
+});
+
+test('dumpAll reads every table inside one read-only snapshot transaction', async () => {
+  const { env } = await setup();
+  const seen = [];
+  const spy = {
+    query: () => {
+      throw new Error('dumpAll must not query outside the transaction');
+    },
+    tx: fn =>
+      env.db.tx(t =>
+        fn({
+          ...t,
+          query: (sql, p) => (seen.push(sql), t.query(sql, p)),
+          exec: sql => (seen.push(sql), t.exec(sql)),
+        }),
+      ),
+  };
+  const dump = await dumpAll(spy);
+  assert.equal(dump.tables.students.length, 6);
+  assert.match(seen[0], /repeatable read/i);
 });

@@ -1,7 +1,9 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { handle, ROUTES } from '../src/app.js';
-import { newEnv } from './helpers.mjs';
+import { newEnv, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 
 const BASE = 'http://localhost';
 

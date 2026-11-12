@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "node --test --test-concurrency=4 test/*.test.mjs",
+    "test:pg": "node --test --test-concurrency=4 test/*.test.mjs",
     "test:ui": "node test/ui/e2e.mjs",
     "dev": "node tools/dev-server.mjs",
     "migrate": "node tools/migrate.mjs"
@@ -18,6 +19,7 @@
     "@vercel/blob": "^2.9.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.16"
+    "@electric-sql/pglite": "^0.5.16",
+    "pg": "^8.23.1"
   }
 }

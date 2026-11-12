@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed, call, loginGa } from './helpers.mjs';
+import { newEnv, seed, call, loginGa, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 import { makeupStatus } from '../src/domain/makeup.js';
 
 async function setup() {
@@ -120,4 +122,21 @@ test('makeupStatus truth table', () => {
   assert.equal(makeupStatus({ place: '他班', failed: true }, { attendance: '欠席・補講できず' }), 'できず');
   assert.equal(makeupStatus({ place: '未定', failed: false }, { attendance: '欠席・補講予定' }), '未定');
   assert.equal(makeupStatus({ place: '個別', failed: false }, null), '予定');
+});
+
+test('makeup list does not run a query per row', async () => {
+  const { env, f, b } = await setup();
+  for (const st of f.students.slice(0, 5)) {
+    for (const round of [1, 2, 3, 4]) {
+      const host = st.group_id === f.groups['火1C'].id ? f.groups['月A'].id : f.groups['火1C'].id;
+      await env.db.query(`insert into makeups(student_id, round, place, host_group_id) values ($1,$2,'他班',$3)`, [st.id, round, host]);
+    }
+  }
+  let n = 0;
+  const counting = { ...env, db: { ...env.db, query: (sql, p) => (n++, env.db.query(sql, p)) } };
+  const r = await call(counting, 'GET', '/api/makeups', undefined, b);
+  assert.equal(r.body.length, 20);
+  assert.equal(r.body[0].hostLabel, '火1 C');
+  assert.equal(r.body[0].homeLabel, '月 A');
+  assert.ok(n <= 6, `${n} queries for 20 rows`);
 });

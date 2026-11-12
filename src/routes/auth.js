@@ -34,17 +34,26 @@ async function login(env, req) {
 async function adminLogin(env, req) {
   const { staffId, pin } = await readJson(req);
   assertPin(pin);
-  const [s] = await env.db.query(`select * from staff where id=$1 and role='admin' and active`, [Number(staffId)]);
-  if (!s) throw new HttpError(401, '名前または暗証番号が違います');
-  if (s.locked_until && new Date(s.locked_until) > new Date()) {
-    throw new HttpError(423, '暗証番号を続けて間違えたため、15分間ログインできません');
-  }
-  if (!(await verifyPin(env, String(pin), s.pin_hash))) {
-    const failed = s.failed_logins + 1;
-    const lock = failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MS) : null;
-    await env.db.query('update staff set failed_logins=$1, locked_until=$2 where id=$3', [lock ? 0 : failed, lock, s.id]);
+  const id = Number(staffId);
+  if (!Number.isInteger(id)) throw new HttpError(401, '名前または暗証番号が違います');
+  // まず「1回試した」ことを1つの文で記録する（同時にたくさん送ってもロックをすり抜けられないように）。
+  // ロック中は行が返らない。期限が切れたロックは、数え直しにする。5回目でロックをかける。
+  const [s] = await env.db.query(
+    `update staff
+        set failed_logins = case when (case when locked_until is null then failed_logins else 0 end) + 1 >= $2 then 0
+                                 else (case when locked_until is null then failed_logins else 0 end) + 1 end,
+            locked_until = case when (case when locked_until is null then failed_logins else 0 end) + 1 >= $2
+                                then now() + ($3 || ' milliseconds')::interval else null end
+      where id = $1 and role = 'admin' and active and (locked_until is null or locked_until <= now())
+      returning id, name, pin_hash`,
+    [id, MAX_FAILED, String(LOCK_MS)],
+  );
+  if (!s) {
+    const [locked] = await env.db.query(`select 1 as x from staff where id=$1 and role='admin' and active and locked_until > now()`, [id]);
+    if (locked) throw new HttpError(423, '暗証番号を続けて間違えたため、15分間ログインできません');
     throw new HttpError(401, '名前または暗証番号が違います');
   }
+  if (!(await verifyPin(env, String(pin), s.pin_hash))) throw new HttpError(401, '名前または暗証番号が違います');
   await env.db.query('update staff set failed_logins=0, locked_until=null where id=$1', [s.id]);
   return json({ id: s.id, name: s.name, role: 'admin' }, 200, { 'Set-Cookie': await adminCookie(env, s.id, s.pin_hash) });
 }

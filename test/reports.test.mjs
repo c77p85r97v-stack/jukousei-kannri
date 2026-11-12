@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed, call, loginGa, loginAdmin } from './helpers.mjs';
+import { newEnv, seed, call, loginGa, loginAdmin, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 
 async function setup() {
   const env = await newEnv();
@@ -102,4 +104,14 @@ test('stats.csv contains retention', async () => {
 test('export requires login', async () => {
   const { env, f } = await setup();
   assert.equal((await call(env, 'GET', `/api/export/records.csv?termId=${f.term.id}`)).status, 401);
+});
+
+test('CSV cells that look like formulas are neutralised', async () => {
+  const { env, f, ga, s } = await setup();
+  await call(env, 'POST', '/api/records', { studentId: s('青木').id, round: 1, typing: 150, note: '=HYPERLINK("http://x","y")', version: 0 }, ga);
+  await call(env, 'POST', '/api/records', { studentId: s('井上').id, round: 1, typing: 150, note: '+1 @x', version: 0 }, ga);
+  const r = await call(env, 'GET', `/api/export/records.csv?termId=${f.term.id}`, undefined, ga);
+  assert.ok(r.text.includes(`"'=HYPERLINK(""http://x"",""y"")"`), r.text.split('\r\n')[1]);
+  assert.ok(r.text.includes(`,'+1 @x,`));
+  assert.ok(r.text.includes(',150,'));
 });

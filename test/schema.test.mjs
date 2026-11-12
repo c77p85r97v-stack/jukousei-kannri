@@ -1,7 +1,9 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createPgliteDb, migrate } from '../src/db.js';
-import { newEnv, seed } from './helpers.mjs';
+import { newEnv, seed, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 
 async function freshDb() {
   const db = await createPgliteDb();

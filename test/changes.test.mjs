@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed, call, loginGa, loginAdmin } from './helpers.mjs';
+import { newEnv, seed, call, loginGa, loginAdmin, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 
 async function setup() {
   const env = await newEnv();

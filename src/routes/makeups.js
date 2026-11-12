@@ -70,7 +70,9 @@ async function setPlace(env, req) {
     if (before) {
       [m] = await t.query('update makeups set place=$1, host_group_id=$2, failed=false, version=version+1 where id=$3 returning *', [b.place, host, before.id]);
     } else {
-      [m] = await t.query('insert into makeups(student_id, round, place, host_group_id, created_by) values ($1,$2,$3,$4,$5) returning *', [studentId, round, b.place, host, op.id]);
+      // 2人が同時に最初の登録をした場合、後の人は何も入らない（一意制約）→ 409
+      [m] = await t.query('insert into makeups(student_id, round, place, host_group_id, created_by) values ($1,$2,$3,$4,$5) on conflict (student_id, round) do nothing returning *', [studentId, round, b.place, host, op.id]);
+      if (!m) throw new HttpError(409, 'ほかの人が先に補講を変更しました。画面を更新してください');
     }
     await audit(t, op.id, before ? '補講の変更' : '補講の登録', 'makeups', m.id, before, m);
     const rec = await setAttendance(t, studentId, round, '欠席・補講予定', op.id, '補講の登録（△）');
@@ -117,18 +119,24 @@ async function list(env, req) {
   const round = intParam(url, 'round', { required: false });
   const status = url.searchParams.get('status');
   const rows = await env.db.query(
-    `select m.*, st.name, st.kana, st.nickname, ${currentGroupSql('st', 'm.round')} as cg,
-            r.attendance, r.typing, r.quiz, r.note, r.version as rversion, r.student_id as rsid, r.round as rround
-       from makeups m join students st on st.id = m.student_id
-       left join records r on r.student_id = m.student_id and r.round = m.round
-      where st.term_id = $1 and ($2::int is null or m.round = $2)
-        and not exists (select 1 from withdrawals w where w.student_id = st.id and w.cancelled_at is null and w.from_round <= m.round)
-      order by m.round, st.kana nulls last, st.name`,
+    `with base as (
+        select m.*, st.name, st.kana, st.nickname, ${currentGroupSql('st', 'm.round')} as cg
+          from makeups m join students st on st.id = m.student_id
+         where st.term_id = $1 and ($2::int is null or m.round = $2)
+           and not exists (select 1 from withdrawals w where w.student_id = st.id and w.cancelled_at is null and w.from_round <= m.round)
+     )
+     select b.*, hs.code || ' ' || hga.name as home_label, xs.code || ' ' || xga.name as host_label,
+            r.attendance, r.typing, r.quiz, r.note, r.version as rversion
+       from base b
+       join groups hg on hg.id = b.cg join slots hs on hs.id = hg.slot_id join staff hga on hga.id = hg.ga_id
+       left join groups xg on xg.id = b.host_group_id left join slots xs on xs.id = xg.slot_id left join staff xga on xga.id = xg.ga_id
+       left join records r on r.student_id = b.student_id and r.round = b.round
+      order by b.round, b.kana nulls last, b.name, b.student_id`,
     [termId, round],
   );
   const out = [];
   for (const r of rows) {
-    const record = r.rversion == null ? null : publicRecord({ student_id: r.rsid, round: r.rround, attendance: r.attendance, typing: r.typing, quiz: r.quiz, note: r.note, version: r.rversion });
+    const record = r.rversion == null ? null : publicRecord({ student_id: r.student_id, round: r.round, attendance: r.attendance, typing: r.typing, quiz: r.quiz, note: r.note, version: r.rversion });
     const st = makeupStatus(r, record);
     if (status && st !== status) continue;
     out.push({
@@ -138,10 +146,10 @@ async function list(env, req) {
       kana: r.kana,
       nickname: r.nickname,
       homeGroupId: r.cg,
-      homeLabel: await labelOf(env.db, r.cg),
+      homeLabel: r.home_label,
       place: r.place,
       hostGroupId: r.host_group_id,
-      hostLabel: await labelOf(env.db, r.host_group_id),
+      hostLabel: r.host_label,
       failed: r.failed,
       version: r.version,
       status: st,

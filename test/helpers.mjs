@@ -7,11 +7,21 @@ export const SLOT_CODES = ['月', '火1', '火2', '水1', '水2', '木1', '木2'
 let shared = null;
 export async function newEnv(extra = {}) {
   if (!shared) {
-    shared = await createPgliteDb();
+    if (process.env.TEST_DATABASE_URL) {
+      // 本物の Postgres で動かす（同時実行の確認用）。テストファイル（＝プロセス）ごとに専用のスキーマを使う。
+      const { createPgDb } = await import('../src/db.js');
+      const schema = `t_${process.pid}`;
+      const admin = await createPgDb(process.env.TEST_DATABASE_URL);
+      await admin.exec(`drop schema if exists ${schema} cascade; create schema ${schema}`);
+      await admin.close();
+      shared = await createPgDb(process.env.TEST_DATABASE_URL, `-c search_path=${schema}`);
+    } else {
+      shared = await createPgliteDb();
+    }
     await migrate(shared);
   }
   const db = shared;
-  const tables = (await db.query(`select tablename from pg_tables where schemaname='public' and tablename <> 'schema_migrations'`)).map(r => r.tablename);
+  const tables = (await db.query(`select tablename from pg_tables where schemaname = current_schema() and tablename <> 'schema_migrations'`)).map(r => r.tablename);
   await db.exec(`truncate ${tables.join(', ')} restart identity cascade`);
   return {
     db,
@@ -27,6 +37,11 @@ export async function newEnv(extra = {}) {
  * 年度1・コマ9・GA 3人（A,B,C）・管理者1人（暗証番号は env.ADMIN_PIN_HASH があればそれ）
  * 月の班 A と B、火1 の班 C、受講生6人（月A:3, 月B:2, 火1C:1）
  */
+/** テストの最後に呼ぶ（本物の Postgres のときは接続を閉じないとプロセスが終わらない） */
+export async function closeEnv() {
+  if (shared && process.env.TEST_DATABASE_URL) await shared.close();
+}
+
 export async function seed(env, { adminPinHash = null } = {}) {
   const db = env.db;
   const [term] = await db.query(`insert into terms(name, active) values ('2027年度PC講習会', true) returning *`);

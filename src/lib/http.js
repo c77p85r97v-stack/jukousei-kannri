@@ -57,7 +57,8 @@ export function assertSameOrigin(request) {
 
 function csvCell(v) {
   if (v == null) return '';
-  const s = String(v);
+  // 文字の先頭が = + - @ などだと、Excel が数式として実行してしまう。先頭に ' を付けて文字として扱わせる。
+  const s = typeof v === 'string' && /^[=+\-@\t\r]/.test(v) ? `'${v}` : String(v);
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

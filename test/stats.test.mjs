@@ -1,6 +1,8 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEnv, seed, call, loginGa } from './helpers.mjs';
+import { newEnv, seed, call, loginGa, closeEnv } from './helpers.mjs';
+
+after(closeEnv);
 import { computeStats } from '../src/domain/stats.js';
 
 // 受講生10人（月A:3 月B:2 火1C:5）、解約2人（江藤=第2回から、小川=第3回から）

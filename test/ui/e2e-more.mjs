@@ -37,6 +37,10 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await row(page, '青木 一').locator('input.typing').fill('abc');
     await row(page, '青木 一').locator('input.typing').press('Enter');
     await row(page, '青木 一').getByText('数字で入力してください').waitFor();
+    // 入力を消せば、赤い行は元に戻り、ほかの回へ切り替えられる
+    await row(page, '青木 一').locator('input.typing').fill('');
+    await row(page, '青木 一').locator('input.typing').press('Enter');
+    await pick(page, '月', 6);
   });
 
   await check('補講で 火1 C を選ぶ → 行に△、火1 の名簿に「補講で来る人」として出る', async page => {
@@ -96,6 +100,48 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await row(page2, '上田 三').locator('input.typing').press('Enter');
     await row(page2, '上田 三').getByText('ほかの人が先に更新しました').waitFor();
     assert.equal(await row(page2, '上田 三').locator('input.typing').inputValue(), '100');
+  });
+
+  await check('保存に失敗した行があるとき、回を切り替えても入力が消えない', async page => {
+    await loginGaUi(page, 'A');
+    await pick(page, '月', 8);
+    await page.route('**/api/records', r => r.abort());
+    await row(page, '青木 一').locator('input.typing').fill('111');
+    await row(page, '青木 一').locator('input.typing').press('Enter');
+    await row(page, '青木 一').and(page.locator('[data-state="failed"]')).waitFor();
+    await page.locator('#roundSeg').getByRole('button', { name: '第7回', exact: true }).click();
+    await page.getByText('保存できていない行があります').waitFor();
+    assert.equal(await page.locator('#entry').getAttribute('data-loaded'), '月:8');
+    assert.equal(await row(page, '青木 一').locator('input.typing').inputValue(), '111');
+    assert.match(await page.locator('#roundSeg button.on').innerText(), /第8回/);
+    await page.locator('#slotSeg').getByRole('button', { name: '火1', exact: true }).click();
+    assert.equal(await row(page, '青木 一').locator('input.typing').inputValue(), '111');
+    await page.getByRole('button', { name: '最新にする' }).click();
+    assert.equal(await row(page, '青木 一').locator('input.typing').inputValue(), '111');
+    await page.unroute('**/api/records');
+    await row(page, '青木 一').getByRole('button', { name: '再送' }).click();
+    await saved(page, '青木 一');
+    await pick(page, '月', 7);
+    await pick(page, '月', 8);
+    assert.equal(await row(page, '青木 一').locator('input.typing').inputValue(), '111');
+  });
+
+  await check('保存の途中で出欠を選び直すと、あとから選んだほうが残る', async page => {
+    await loginGaUi(page, 'A');
+    await pick(page, '月', 8);
+    await page.route('**/api/records', async r => {
+      await new Promise(res => setTimeout(res, 500));
+      await r.continue();
+    });
+    const att = row(page, '上田 三').locator('select.att');
+    await att.selectOption('出席');
+    await att.selectOption('欠席');
+    await page.waitForTimeout(1800);
+    assert.equal(await att.inputValue(), '欠席');
+    await page.unroute('**/api/records');
+    await page.reload();
+    await page.locator('#entry[data-loaded="月:8"]').waitFor();
+    assert.equal(await row(page, '上田 三').locator('select.att').inputValue(), '欠席');
   });
 
   await check('受講生を探す → 全回の記録が出る', async page => {
