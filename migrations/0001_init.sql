@@ -119,14 +119,6 @@ create table audit_log (
   after_json jsonb
 );
 
-create table backups_meta (
-  id serial primary key,
-  at timestamptz not null default now(),
-  blob_key text not null,
-  size int not null default 0,
-  kind text not null check (kind in ('自動','手動','復元前','初期化前'))
-);
-
 create table request_ids (
   id text primary key,
   at timestamptz not null default now(),

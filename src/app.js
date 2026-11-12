@@ -7,6 +7,7 @@ import * as records from './routes/records.js';
 import * as makeups from './routes/makeups.js';
 import * as changes from './routes/changes.js';
 import * as reports from './routes/reports.js';
+import * as maintenance from './routes/maintenance.js';
 
 // [メソッド, パス(正規表現), 処理(env, req, match)]
 export const ROUTES = [
@@ -18,6 +19,7 @@ export const ROUTES = [
   ...makeups.routes,
   ...changes.routes,
   ...reports.routes,
+  ...maintenance.routes,
 ];
 
 export function addRoutes(list) {

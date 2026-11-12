@@ -98,3 +98,25 @@ export async function loginAdmin(env, f) {
   if (r.status !== 200) throw new Error(`loginAdmin failed ${r.status} ${JSON.stringify(r.body)}`);
   return r.cookie;
 }
+
+/** メモリ上の Blob（本番は Vercel Blob）。_store で中身を直接いじれる。 */
+export function memoryBlob() {
+  const store = new Map();
+  return {
+    _store: store,
+    async put(key, body) {
+      store.set(key, { body, uploadedAt: new Date() });
+    },
+    async get(key) {
+      const v = store.get(key);
+      if (!v) throw new Error('not found');
+      return v.body;
+    },
+    async list(prefix) {
+      return [...store.entries()].filter(([k]) => k.startsWith(prefix)).map(([key, v]) => ({ key, size: v.body.length, uploadedAt: v.uploadedAt }));
+    },
+    async del(key) {
+      store.delete(key);
+    },
+  };
+}
