@@ -416,9 +416,10 @@
     $('#importCommit').disabled = true;
     const p = await api.post('/api/admin/import/preview', { termId: term.id, text: importText });
     const s = p.summary;
+    // replaceChildren は null を「null」という文字として出すので、h() で包んで空を飛ばす
     $('#importPreview').replaceChildren(
       h('p', {}, h('b', {}, `取り込む受講生：${s.students}人`), `　新しく作る GA：${s.newGa}人　新しく作る班：${s.newGroups}班　重複で飛ばす：${s.duplicates}人`),
-      p.errors.length ? h('div', { class: 'error' }, `取り込めない行が ${p.errors.length} 行あります。貼り付け欄を直して、もう一度「確認する」を押してください。\n` + p.errors.map(e => `　${e.line}行目：${e.reason}`).join('\n')) : null,
+      h('div', {}, p.errors.length ? h('div', { class: 'error' }, `取り込めない行が ${p.errors.length} 行あります。貼り付け欄を直して、もう一度「確認する」を押してください。\n` + p.errors.map(e => `　${e.line}行目：${e.reason}`).join('\n')) : null),
       table('importRows', ['行', 'コマ', 'GA', '名前', 'ヨミ', 'ニックネーム', ''], p.rows.slice(0, 500).map(r => h('tr', { style: r.duplicate ? 'opacity:.5' : null }, td(r.line), td(r.slotCode), td(r.gaName, r.newGa ? h('span', { class: 'chip info', style: 'margin-left:6px' }, '新しい GA') : ''), td(r.name), td(r.kana || ''), td(r.nickname || ''), td(r.duplicate ? h('span', { class: 'chip none' }, '重複・飛ばす') : r.newGroup ? h('span', { class: 'chip info' }, '新しい班') : ''))), '取り込める行がありません'),
     );
     $('#importCommit').disabled = p.errors.length > 0 || s.students === 0;

@@ -26,6 +26,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await page.locator('#importText').fill('月\tA\t新規 太郎\tシンキ タロウ\tたろ\n火２\tしんじん\t追加 花子\tツイカ ハナコ\tはな');
     await page.getByRole('button', { name: '確認する' }).click();
     await page.locator('#importPreview').getByText('新しく作る GA：1人').waitFor();
+    assert.doesNotMatch(await page.locator('#importPreview').innerText(), /null|undefined/);
     await shot(page, 'admin-import-preview');
     await page.getByRole('button', { name: 'この内容で取り込む' }).click();
     await page.getByText('2人を取り込みました').waitFor();
