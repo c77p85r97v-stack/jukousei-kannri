@@ -1,0 +1,23 @@
+{
+  "name": "pc-koshu-kanri",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PC講習会 受講生管理システム（Vercel + Neon）",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=4 test/*.test.mjs",
+    "test:ui": "node test/ui/e2e.mjs",
+    "dev": "node tools/dev-server.mjs",
+    "migrate": "node tools/migrate.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "@vercel/blob": "^2.9.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16"
+  }
+}
