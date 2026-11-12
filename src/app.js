@@ -4,6 +4,7 @@ import * as auth from './routes/auth.js';
 import * as master from './routes/master.js';
 import * as importer from './routes/importer.js';
 import * as records from './routes/records.js';
+import * as makeups from './routes/makeups.js';
 
 // [メソッド, パス(正規表現), 処理(env, req, match)]
 export const ROUTES = [
@@ -12,6 +13,7 @@ export const ROUTES = [
   ...master.routes,
   ...importer.routes,
   ...records.routes,
+  ...makeups.routes,
 ];
 
 export function addRoutes(list) {

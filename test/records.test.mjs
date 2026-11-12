@@ -127,3 +127,11 @@ test('roster requires login', async () => {
   const r = await call(env, 'GET', `/api/roster?slotId=${f.slots['月'].id}&round=1`);
   assert.equal(r.status, 401);
 });
+
+test('missing or non-numeric ids → 400 not 500', async () => {
+  const { env, a, save } = await setup();
+  assert.equal((await save(a, { round: 1, typing: 100 })).status, 400);
+  assert.equal((await save(a, { studentId: 'x', round: 1 })).status, 400);
+  assert.equal((await call(env, 'POST', '/api/makeups', { studentId: 'x', round: 1, place: '未定' }, a)).status, 400);
+  assert.equal((await call(env, 'GET', '/api/roster?slotId=abc&round=1', undefined, a)).status, 400);
+});

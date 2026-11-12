@@ -23,6 +23,7 @@ export const publicRecord = r =>
 
 /** 受講生の年度を返す（なければ 404）。 */
 export async function termOfStudent(t, studentId) {
+  if (!Number.isInteger(studentId)) throw new HttpError(400, '受講生を選んでください');
   const [row] = await t.query('select t.* from students s join terms t on t.id = s.term_id where s.id = $1', [studentId]);
   if (!row) throw new HttpError(404, '受講生が見つかりません');
   return row;
