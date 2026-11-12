@@ -4,12 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>PC講習会 受講生管理</title>
+<title>管理画面｜PC講習会 受講生管理</title>
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<header class="top"><div class="brand">PC講習会<small>受講生管理</small></div></header>
-<main class="wrap"></main>
+<header class="top">
+  <div class="brand">PC講習会<small>受講生管理・管理画面</small></div>
+  <div class="who">
+    <span id="whoName"></span>
+    <a class="button small" href="/ga.html">記録入力へ</a>
+    <button type="button" class="small" id="logout">ログアウト</button>
+  </div>
+</header>
+<main class="wrap">
+  <p class="error" id="pageError" role="alert"></p>
+  <section class="card narrow" id="firstTerm" hidden>
+    <h2>最初に年度を作ってください</h2>
+    <p class="note">例：「2027年度PC講習会」。作ると、月〜金2の9コマが自動で用意されます。</p>
+    <form id="firstTermForm">
+      <label for="firstTermName">年度の名前</label>
+      <input id="firstTermName" required style="width:100%">
+      <p class="error" id="firstTermError" role="alert"></p>
+      <p><button class="primary" type="submit">年度を作る</button></p>
+    </form>
+  </section>
+  <nav class="tabs no-print" id="tabs" hidden>
+    <button type="button" data-tab="roster" class="on">名簿</button>
+    <button type="button" data-tab="makeups">補講</button>
+    <button type="button" data-tab="changes">解約・移動</button>
+    <button type="button" data-tab="stats">集計</button>
+    <button type="button" data-tab="master">受講生・班</button>
+    <button type="button" data-tab="staff">スタッフ</button>
+    <button type="button" data-tab="audit">操作履歴</button>
+    <button type="button" data-tab="data">データ・バックアップ</button>
+  </nav>
+  <section id="tab-roster" hidden><div id="rosterView"></div></section>
+  <section id="tab-makeups" hidden></section>
+  <section id="tab-changes" hidden></section>
+  <section id="tab-stats" hidden><div id="statsView"></div></section>
+  <section id="tab-master" hidden></section>
+  <section id="tab-staff" hidden></section>
+  <section id="tab-audit" hidden></section>
+  <section id="tab-data" hidden></section>
+</main>
+<dialog id="formDialog"></dialog>
 <script src="/js/api.js"></script>
+<script src="/js/views.js"></script>
+<script src="/js/admin.js"></script>
 </body>
 </html>

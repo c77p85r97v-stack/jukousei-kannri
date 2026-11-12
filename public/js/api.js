@@ -46,7 +46,7 @@
       else if (k in el && k !== 'list') el[k] = v;
       else el.setAttribute(k, v);
     }
-    for (const c of children.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c)));
+    for (const c of children.flat(Infinity)) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c)));
     return el;
   }
 
