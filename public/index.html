@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PC講習会 受講生管理</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">PC講習会<small>受講生管理</small></div>
+</header>
+<main class="wrap narrow">
+  <section class="card" id="choose">
+    <h2>どちらでログインしますか？</h2>
+    <div class="choice">
+      <button type="button" id="asGa">GA</button>
+      <button type="button" id="asAdmin">管理者</button>
+    </div>
+  </section>
+
+  <section class="card" id="gaBox" hidden>
+    <h2>名前を選んでください</h2>
+    <div class="names" id="gaNames"></div>
+    <p class="note" id="gaEmpty" hidden>GA がまだ登録されていません。管理者に登録を頼んでください。</p>
+    <p><button type="button" class="link back">← 戻る</button></p>
+  </section>
+
+  <section class="card" id="adminBox" hidden>
+    <h2>管理者ログイン</h2>
+    <form id="adminForm">
+      <label for="adminName">名前</label><select id="adminName" required style="width:100%"></select>
+      <label>暗証番号<input id="adminPin" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{4,8}" maxlength="8" required></label>
+      <p class="error" id="adminError" role="alert"></p>
+      <button class="primary" type="submit">ログイン</button>
+    </form>
+    <p><button type="button" class="link back">← 戻る</button></p>
+  </section>
+
+  <section class="card" id="setupBox" hidden>
+    <h2>初期設定</h2>
+    <p class="note">最初の管理者を作ります。合言葉は、システムを設置した人から受け取ったものを入れてください。</p>
+    <form id="setupForm">
+      <label>合言葉<input id="setupToken" type="password" autocomplete="off" required></label>
+      <label>管理者の名前<input id="setupName" autocomplete="off" required></label>
+      <label>暗証番号（数字4〜8桁）<input id="setupPin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="new-password" required></label>
+      <p class="error" id="setupError" role="alert"></p>
+      <button class="primary" type="submit">管理者を作る</button>
+    </form>
+  </section>
+
+  <p class="error" id="pageError" role="alert"></p>
+</main>
+<script src="/js/api.js"></script>
+<script>
+(async () => {
+  const { api, $, $$, h } = koshu;
+  const show = id => {
+    for (const s of ['choose', 'gaBox', 'adminBox', 'setupBox']) $('#' + s).hidden = s !== id;
+  };
+  try {
+    const setup = await api.get('/api/admin/setup');
+    if (setup.needed) {
+      show('setupBox');
+      $('#setupForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        $('#setupError').textContent = '';
+        try {
+          await api.post('/api/admin/setup', { token: $('#setupToken').value, name: $('#setupName').value, pin: $('#setupPin').value });
+          location.href = '/admin.html';
+        } catch (err) {
+          $('#setupError').textContent = err.message;
+        }
+      });
+      return;
+    }
+    const boot = await api.get('/api/bootstrap');
+    const gas = boot.staff.filter(s => s.role === 'ga');
+    const admins = boot.staff.filter(s => s.role === 'admin');
+    $('#gaEmpty').hidden = gas.length > 0;
+    $('#gaNames').append(
+      ...gas.map(s =>
+        h('button', {
+          type: 'button',
+          onclick: async () => {
+            try {
+              await api.post('/api/login', { staffId: s.id });
+              location.href = '/ga.html';
+            } catch (err) {
+              $('#pageError').textContent = err.message;
+            }
+          },
+        }, s.name),
+      ),
+    );
+    $('#adminName').append(...admins.map(s => h('option', { value: s.id }, s.name)));
+    $('#asGa').addEventListener('click', () => show('gaBox'));
+    $('#asAdmin').addEventListener('click', () => {
+      show('adminBox');
+      $('#adminPin').focus();
+    });
+    for (const b of $$('.back')) b.addEventListener('click', () => show('choose'));
+    $('#adminForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      $('#adminError').textContent = '';
+      try {
+        await api.post('/api/admin/login', { staffId: Number($('#adminName').value), pin: $('#adminPin').value });
+        location.href = '/admin.html';
+      } catch (err) {
+        $('#adminError').textContent = err.message;
+        $('#adminPin').select();
+      }
+    });
+  } catch (err) {
+    $('#pageError').textContent = err.message;
+  }
+})();
+</script>
+</body>
+</html>
