@@ -2,12 +2,14 @@
 import { json, errorResponse, assertSameOrigin, HttpError } from './lib/http.js';
 import * as auth from './routes/auth.js';
 import * as master from './routes/master.js';
+import * as importer from './routes/importer.js';
 
 // [メソッド, パス(正規表現), 処理(env, req, match)]
 export const ROUTES = [
   ['GET', /^\/api\/health$/, async () => json({ ok: true })],
   ...auth.routes,
   ...master.routes,
+  ...importer.routes,
 ];
 
 export function addRoutes(list) {
