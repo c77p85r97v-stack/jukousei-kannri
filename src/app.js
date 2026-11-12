@@ -1,0 +1,27 @@
+// API の入口：Web 標準の Request を受け取り Response を返す。
+import { json, errorResponse, assertSameOrigin, HttpError } from './lib/http.js';
+
+// [メソッド, パス(正規表現), 処理(env, req, match)]
+export const ROUTES = [
+  ['GET', /^\/api\/health$/, async () => json({ ok: true })],
+];
+
+export function addRoutes(list) {
+  ROUTES.push(...list);
+}
+
+export async function handle(request, env) {
+  try {
+    const url = new URL(request.url);
+    const method = request.method === 'HEAD' ? 'GET' : request.method;
+    if (method === 'POST') assertSameOrigin(request);
+    for (const [m, re, fn] of ROUTES) {
+      if (m !== method) continue;
+      const match = url.pathname.match(re);
+      if (match) return await fn(env, request, match);
+    }
+    throw new HttpError(404, '見つかりません');
+  } catch (e) {
+    return errorResponse(e);
+  }
+}

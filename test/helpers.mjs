@@ -3,9 +3,16 @@ import { createPgliteDb, migrate } from '../src/db.js';
 
 export const SLOT_CODES = ['月', '火1', '火2', '水1', '水2', '木1', '木2', '金1', '金2'];
 
+// 1つのテストファイル（＝1プロセス）で PGlite を1つだけ作り、テストごとに全表を空にする。
+let shared = null;
 export async function newEnv(extra = {}) {
-  const db = await createPgliteDb();
-  await migrate(db);
+  if (!shared) {
+    shared = await createPgliteDb();
+    await migrate(shared);
+  }
+  const db = shared;
+  const tables = (await db.query(`select tablename from pg_tables where schemaname='public' and tablename <> 'schema_migrations'`)).map(r => r.tablename);
+  await db.exec(`truncate ${tables.join(', ')} restart identity cascade`);
   return {
     db,
     PIN_PEPPER: 'test-pepper-0123456789abcdef',
