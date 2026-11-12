@@ -74,7 +74,8 @@ export async function call(env, method, path, body, cookie) {
   if (cookie) headers.Cookie = cookie;
   const res = await handle(new Request(`http://localhost${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), env);
   const set = res.headers.get('Set-Cookie');
-  const text = await res.text();
+  // res.text() は先頭の BOM を取り除くので、BOM を確かめられるよう自分でデコードする
+  const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(await res.arrayBuffer());
   let parsed = text;
   try {
     parsed = JSON.parse(text);
