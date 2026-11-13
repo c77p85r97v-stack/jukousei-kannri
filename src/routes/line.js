@@ -5,7 +5,7 @@ import { rosterFor, groupAt } from '../domain/roster.js';
 import { indivSlots, indivLabel } from '../domain/indiv.js';
 import { FREE_ROUND } from './records.js';
 
-const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず'];
+const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず', '欠席・補講済み'];
 const kana = st => st.kana || st.name;
 /** 「月」は「月曜」、それ以外（火1 など）はそのまま */
 const slotText = code => (code.length === 1 ? `${code}曜` : code);
@@ -37,7 +37,7 @@ async function daily(env, req) {
       lines.push(`欠席者${absent.length}名です。`);
       for (const m of absent) {
         const p = placeOf(m.makeup);
-        const note = m.makeup && m.makeup.failed ? '補講できず' : p ? `補講：${p}` : '補講未定';
+        const note = m.makeup && m.makeup.failed ? '補講できず' : m.record.attendance === '欠席・補講済み' ? `補講済み${p ? `：${p}` : ''}` : p ? `補講：${p}` : '補講未定';
         lines.push(`・${kana(m)}さん（${note}）`);
       }
     }

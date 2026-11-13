@@ -40,8 +40,8 @@
   // ---------- 記録入力 ----------
   const SELECTABLE = ['出席', '記録なし', '時間切れ', '欠席'];
   const LABEL = { 記録なし: '出席（記録なし）', 時間切れ: '出席（時間切れ）', 欠席: '当日欠席' };
-  const AUTO_LABEL = { '欠席・補講予定': '△ 欠席・補講予定', '欠席・補講できず': '× 欠席・補講できず' };
-  const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず'];
+  const AUTO_LABEL = { '欠席・補講予定': '△ 欠席・補講予定', '欠席・補講できず': '× 欠席・補講できず', '欠席・補講済み': '欠席・補講済み' };
+  const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず', '欠席・補講済み'];
   const entry = $('#entry');
   let rows = [];
   let current = null; // { slotId, round, data }
@@ -255,7 +255,7 @@
         if (attChanged && !AUTO_LABEL[typed.attendance]) row.att.value = typed.attendance;
         setState(row, 'saved');
         if (row.makeup) {
-          row.makeup = { ...row.makeup, status: ['出席', '出席・記録なし', '記録なし', '時間切れ'].includes(res.record.attendance) ? '済' : row.makeup.failed ? 'できず' : row.makeup.place === '未定' ? '未定' : '予定' };
+          row.makeup = { ...row.makeup, status: ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席・補講済み'].includes(res.record.attendance) ? '済' : row.makeup.failed ? 'できず' : row.makeup.place === '未定' ? '未定' : '予定' };
           paintMakeup(row);
         }
       } catch (e) {
@@ -397,7 +397,7 @@
   $('#mkForm').addEventListener('submit', async e => {
     e.preventDefault();
     const place = ($$('input[name=place]').find(r => r.checked) || {}).value;
-    if (!place) return void ($('#mkError').textContent = '受ける場所を選んでください');
+    if (!place) return void ($('#mkError').textContent = '振替先GAを選んでください');
     const extra = { place };
     if (place === '他班') {
       if (!groupSel.value) return void ($('#mkError').textContent = '補講先の班を選んでください');

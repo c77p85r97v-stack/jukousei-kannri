@@ -37,7 +37,7 @@ test("host GA typing on the student's record marks status 済 and home roster sh
   const guest = await member('火1', 2, 'C', '江藤', 'guests');
   const r = await call(env, 'POST', '/api/records', { studentId: id, round: 2, typing: 133.3, version: guest.record.version }, c);
   assert.equal(r.status, 200);
-  assert.equal(r.body.record.attendance, '出席');
+  assert.equal(r.body.record.attendance, '欠席・補講済み');
   const home = await member('月', 2, 'B', '江藤');
   assert.equal(home.record.typing, 133.3);
   assert.equal(home.makeup.status, '済');
@@ -86,6 +86,17 @@ test('place 未定 then 個別 then entering record → 済', async () => {
   assert.equal(list.body[0].place, '個別');
 });
 
+test('cancelling a done makeup goes back to 当日欠席, keeping the typing', async () => {
+  const { env, b, s } = await setup();
+  const id = s('江藤').id;
+  const m = await call(env, 'POST', '/api/makeups', { studentId: id, round: 3, place: '個別', version: 0 }, b);
+  const done = await call(env, 'POST', '/api/records', { studentId: id, round: 3, typing: 99, version: m.body.record.version }, b);
+  assert.equal(done.body.record.attendance, '欠席・補講済み');
+  const r = await call(env, 'POST', '/api/makeups/cancel', { studentId: id, round: 3, version: m.body.makeup.version }, b);
+  assert.equal(r.body.record.attendance, '欠席');
+  assert.equal(r.body.record.typing, 99);
+});
+
 test('cancel restores 欠席 and removes guest', async () => {
   const { env, f, b, s, member } = await setup();
   const id = s('江藤').id;
@@ -119,6 +130,7 @@ test('list filters by status', async () => {
 
 test('makeupStatus truth table', () => {
   assert.equal(makeupStatus({ place: '他班', failed: false }, { attendance: '出席' }), '済');
+  assert.equal(makeupStatus({ place: '他班', failed: false }, { attendance: '欠席・補講済み' }), '済');
   assert.equal(makeupStatus({ place: '他班', failed: true }, { attendance: '欠席・補講できず' }), 'できず');
   assert.equal(makeupStatus({ place: '未定', failed: false }, { attendance: '欠席・補講予定' }), '未定');
   assert.equal(makeupStatus({ place: '個別', failed: false }, null), '予定');

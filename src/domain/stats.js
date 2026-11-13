@@ -1,6 +1,6 @@
 // 集計（表に保存せず、毎回計算する）。定義は設計書 3章「集計の定義」。
 import { currentGroupSql, enrolledSql } from './roster.js';
-import { ATTENDED } from './makeup.js';
+import { ATTENDED, MAKEUP_DONE } from './makeup.js';
 
 const avg = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 const ratio = (a, b) => (b > 0 ? a / b : null);
@@ -24,12 +24,15 @@ export async function computeStats(db, termId) {
   );
 
   const attendanceRate = {};
-  for (const r of rounds) attendanceRate[r] = { enrolled: 0, attended: 0, rate: null };
+  for (const r of rounds) attendanceRate[r] = { enrolled: 0, attended: 0, sameDay: 0, byMakeup: 0, rate: null };
   const byStudent = new Map();
   for (const c of cells) {
     if (c.enrolled) {
       attendanceRate[c.round].enrolled++;
-      if (ATTENDED.includes(c.attendance)) attendanceRate[c.round].attended++;
+      if (ATTENDED.includes(c.attendance)) {
+        attendanceRate[c.round].attended++;
+        attendanceRate[c.round][c.attendance === MAKEUP_DONE ? 'byMakeup' : 'sameDay']++;
+      }
     }
     if (!byStudent.has(c.id)) byStudent.set(c.id, {});
     byStudent.get(c.id)[c.round] = c;

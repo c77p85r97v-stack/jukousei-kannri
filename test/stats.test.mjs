@@ -23,6 +23,8 @@ async function setup() {
   for (const n of ['青木', '井上', '上田', '加藤', '追加 1']) await rec(n, 3, '出席', 100);
   await rec('追加 2', 3, '記録なし');
   await rec('追加 3', 3, '欠席');
+  await rec('追加 1', 4, '欠席・補講済み', 120);
+  await rec('青木', 4, '出席', 110);
   // 伸び：青木は第1回なし・第2回200→第8回150（+50）、井上は第1回100→第8回120（−20）
   await rec('青木', 2, '出席', 200);
   await rec('青木', 8, '出席', 150, 18);
@@ -46,7 +48,10 @@ test('retention and withdrawal rates', async () => {
 test('attendance rate per round', async () => {
   const { env, f } = await setup();
   const st = await computeStats(env.db, f.term.id);
-  assert.deepEqual(st.attendanceRate[3], { enrolled: 8, attended: 6, rate: 0.75 });
+  assert.deepEqual(st.attendanceRate[3], { enrolled: 8, attended: 6, sameDay: 6, byMakeup: 0, rate: 0.75 });
+  assert.equal(st.attendanceRate[4].attended, 2);
+  assert.equal(st.attendanceRate[4].sameDay, 1);
+  assert.equal(st.attendanceRate[4].byMakeup, 1);
   assert.equal(st.attendanceRate[1].enrolled, 10);
   assert.equal(st.attendanceRate[2].enrolled, 9);
   assert.deepEqual(Object.keys(st.attendanceRate).map(Number), [1, 2, 3, 4, 5, 6, 7, 8]);

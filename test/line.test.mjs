@@ -79,3 +79,14 @@ test('line texts need login', async () => {
   const { env, f } = await setup();
   assert.equal((await call(env, 'GET', `/api/line/daily?slotId=${f.slots['月'].id}&round=2`)).status, 401);
 });
+
+test('daily report lists someone who already did the makeup as 補講済み', async () => {
+  const { env, f, a, s, rec } = await setup();
+  await rec('青木', 4, '出席');
+  await rec('上田', 4, '出席');
+  await call(env, 'POST', '/api/makeups', { studentId: s('井上').id, round: 4, place: '他班', hostGroupId: f.groups['火1C'].id, version: 0 }, a);
+  const [cur] = await env.db.query('select version from records where student_id=$1 and round=4', [s('井上').id]);
+  await call(env, 'POST', '/api/records', { studentId: s('井上').id, round: 4, typing: 140, version: cur.version }, a);
+  const r = await call(env, 'GET', `/api/line/daily?slotId=${f.slots['月'].id}&round=4`, undefined, a);
+  assert.match(r.body.text, /欠席者1名です。\n・イノウエ ジさん（補講済み：火1 C班）/);
+});

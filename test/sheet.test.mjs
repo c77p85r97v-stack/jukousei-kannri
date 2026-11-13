@@ -91,3 +91,15 @@ test('records sheet needs login', async () => {
   const { env, f } = await setup();
   assert.equal((await call(env, 'GET', `/api/records/sheet?slotId=${f.slots['月'].id}`)).status, 401);
 });
+
+test('a makeup done without typing shows 補講済み; with typing shows the number and the place', async () => {
+  const { env, f, a, s, sheet, row } = await setup();
+  for (const [name, attendance, typing] of [['青木', '記録なし', undefined], ['井上', undefined, 150]]) {
+    await call(env, 'POST', '/api/makeups', { studentId: s(name).id, round: 5, place: '他班', hostGroupId: f.groups['火1C'].id, version: 0 }, a);
+    const [cur] = await env.db.query('select version from records where student_id=$1 and round=5', [s(name).id]);
+    await call(env, 'POST', '/api/records', { studentId: s(name).id, round: 5, ...(attendance ? { attendance } : {}), ...(typing ? { typing } : {}), version: cur.version }, a);
+  }
+  const body = (await sheet()).body;
+  assert.deepEqual(row(body, '青木').cells[5], { value: '補講済み', remark: '火1 C補講', out: false });
+  assert.deepEqual(row(body, '井上').cells[5], { value: '150', remark: '火1 C補講', out: false });
+});

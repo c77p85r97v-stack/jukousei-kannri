@@ -164,13 +164,28 @@ test('typing does not turn × (補講できず) into 出席', async () => {
   assert.equal(r.body.record.attendance, '欠席・補講できず');
 });
 
-test('typing turns △ (補講予定) into 出席 so the makeup becomes done', async () => {
+test('typing turns △ (補講予定) into 補講済み (absent that day stays on record) so the makeup becomes done', async () => {
   const { env, s, a, save } = await setup();
   const id = s('青木').id;
   await call(env, 'POST', '/api/makeups', { studentId: id, round: 2, place: '未定', version: 0 }, a);
   const [cur] = await env.db.query('select version from records where student_id=$1 and round=2', [id]);
   const r = await save(a, { studentId: id, round: 2, typing: 120, version: cur.version });
-  assert.equal(r.body.record.attendance, '出席');
+  assert.equal(r.body.record.attendance, '欠席・補講済み');
+});
+
+test('choosing 出席/記録なし/時間切れ for someone with a makeup records 補講済み', async () => {
+  const { env, s, a, save } = await setup();
+  const id = s('青木').id;
+  await call(env, 'POST', '/api/makeups', { studentId: id, round: 2, place: '個別', indivNo: 3, version: 0 }, a);
+  const [cur] = await env.db.query('select version from records where student_id=$1 and round=2', [id]);
+  const r = await save(a, { studentId: id, round: 2, attendance: '記録なし', version: cur.version });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.record.attendance, '欠席・補講済み');
+});
+
+test('補講済み cannot be chosen by hand', async () => {
+  const { s, a, save } = await setup();
+  assert.equal((await save(a, { studentId: s('青木').id, round: 2, attendance: '欠席・補講済み' })).status, 400);
 });
 
 test('GA can set a nickname, with audit', async () => {

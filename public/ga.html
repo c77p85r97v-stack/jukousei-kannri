@@ -29,7 +29,7 @@
   <section id="entryTab" hidden>
     <div class="bar" id="slotBar"></div>
     <div class="bar" id="roundBar"></div>
-    <p class="note">数字を入れて Enter で下の行へ進み、その行が自動で保存されます。休んだ人は出欠で「当日欠席」を選び、「補講」を押して受ける場所を選んでください（△が自動で付きます）。第0回は自由参加なので、来た人に「出席」をつけるだけです。</p>
+    <p class="note">数字を入れて Enter で下の行へ進み、その行が自動で保存されます。休んだ人は出欠で「当日欠席」を選び、「補講」を押して振替先GAを選んでください（△が自動で付きます）。補講でタイピングを入れると「欠席・補講済み」になり、当日休んだことが記録に残ります。第0回は自由参加なので、来た人に「出席」をつけるだけです。</p>
     <div id="entry" class="entry"></div>
   </section>
   <section id="searchTab" hidden></section>
@@ -41,7 +41,7 @@
 <dialog id="mkDialog">
   <form class="dlg" method="dialog" id="mkForm">
     <h3 id="mkTitle">補講</h3>
-    <p class="note">受ける場所を1つ選んでください。あとから変えられます。</p>
+    <p class="note">振替先GA（受ける班・個別補講）を1つ選んでください。あとから変えられます。</p>
     <label class="inline"><input type="radio" name="place" value="他班" id="mkOther"> ほかの班で受ける</label>
     <div class="bar" style="margin:6px 0 10px 24px">
       <label class="inline">コマ <select id="mkSlot"></select></label>

@@ -81,7 +81,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await shot(page, 'ga-guest');
   });
 
-  await check('補講先でタイピングを入れる → 元の班の行に同じ値が出て「済」', async page => {
+  await check('補講先でタイピングを入れる → 元の班の行に同じ値が出て「済」、出欠は「欠席・補講済み」で残る', async page => {
     await loginGaUi(page, 'C');
     await pick(page, '火1', 2);
     const guest = page.locator('#entry tr.guest', { hasText: '江藤 四' });
@@ -90,7 +90,8 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await guest.and(page.locator('[data-state="saved"]')).waitFor();
     await pick(page, '月', 2);
     assert.equal(await row(page, '江藤 四').locator('input.typing').inputValue(), '133.3');
-    await row(page, '江藤 四').getByText('済').waitFor();
+    await row(page, '江藤 四').getByText('済', { exact: true }).waitFor();
+    assert.equal(await row(page, '江藤 四').locator('select.att').inputValue(), '欠席・補講済み');
   });
 
   await check('場所未定で登録 → できなかった → ×', async page => {

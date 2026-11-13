@@ -199,7 +199,7 @@
           h('span', { class: 'grow' }),
           btn('更新', () => tabs.makeups(), ''),
         ),
-        h('p', { class: 'note' }, '場所を選び直すと、補講先の名簿に自動で反映されます。個別補講で受けた人は、ここで出欠とタイピングを入れると「済」になります。'),
+        h('p', { class: 'note' }, '振替先GAを選び直すと、補講先の名簿に自動で反映されます。個別補講で受けた人は、ここで出欠とタイピングを入れると「済」になり、出欠は「欠席・補講済み」として残ります。'),
         h('div', { id: 'mkBox' }),
       );
     }
@@ -212,12 +212,12 @@
     $('#mkBox').replaceChildren(
       table(
         'mkList',
-        ['回', '名前', '元の班', '場所', '状態', '出欠', 'タイピング', ''],
+        ['回', '名前', '元の班', '振替先GA', '状態', '出欠', 'タイピング', ''],
         list.map(m => {
           const place = h(
             'select',
-            { class: 'place', 'aria-label': `場所 ${m.name}` },
-            h('option', { value: '未定' }, '場所未定'),
+            { class: 'place', 'aria-label': `振替先GA ${m.name}` },
+            h('option', { value: '未定' }, '振替先未定'),
             h('option', { value: '個別' }, '個別補講'),
             [...bySlot].map(([code, gs]) => h('optgroup', { label: code }, gs.filter(g => g.id !== m.homeGroupId).map(g => h('option', { value: `g${g.id}` }, groupLabel(g))))),
           );

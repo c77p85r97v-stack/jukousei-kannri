@@ -15,7 +15,7 @@
     const [cls, text] = STATUS_CHIP[status] || ['none', status];
     return h('span', { class: `chip ${cls}` }, text);
   }
-  const placeText = m => (m.place === '他班' ? m.hostLabel : m.place === '個別' ? (m.indivLabel ? `個別 ${m.indivLabel}` : '個別（枠未定）') : '場所未定');
+  const placeText = m => (m.place === '他班' ? m.hostLabel : m.place === '個別' ? (m.indivLabel ? `個別 ${m.indivLabel}` : '個別（枠未定）') : '振替先未定');
 
   /** 「今日の曜日」に近いコマ（なければ先頭） */
   function defaultSlot(slots) {
@@ -175,7 +175,7 @@
     paint();
     root.replaceChildren(
       h('div', { class: 'bar' }, seg, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: () => load() }, '最新にする')),
-      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数。「記録なし」「時間切れ」は来たけど数字がない人、第0回の〇は参加、△は補講予定、×は補講できず。'),
+      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数。「記録なし」「時間切れ」は来たけど数字がない人、第0回の〇は参加、△は補講予定、×は補講できず、「補講済み」は当日欠席して補講で受けた人（数字があれば数字）。'),
       body,
     );
     async function load() {
@@ -252,11 +252,11 @@
               h(
                 'table',
                 { class: 'grid' },
-                h('thead', {}, h('tr', {}, h('th', {}, '回'), h('th', { class: 'num' }, '在籍'), h('th', { class: 'num' }, '受講'), h('th', { class: 'num' }, '受講率'), h('th', { class: 'num' }, 'この回から未受講の解約'))),
-                h('tbody', {}, Object.keys(st.attendanceRate).map(Number).map(r => h('tr', {}, h('td', {}, `第${r}回`), h('td', { class: 'num' }, st.attendanceRate[r].enrolled), h('td', { class: 'num' }, st.attendanceRate[r].attended), h('td', { class: 'num' }, pct(st.attendanceRate[r].rate)), h('td', { class: 'num' }, st.withdrawnByRound[r] || 0)))),
+                h('thead', {}, h('tr', {}, h('th', {}, '回'), h('th', { class: 'num' }, '在籍'), h('th', { class: 'num' }, '受講'), h('th', { class: 'num' }, 'うち当日出席'), h('th', { class: 'num' }, 'うち補講済み'), h('th', { class: 'num' }, '受講率'), h('th', { class: 'num' }, 'この回から未受講の解約'))),
+                h('tbody', {}, Object.keys(st.attendanceRate).map(Number).map(r => h('tr', {}, h('td', {}, `第${r}回`), h('td', { class: 'num' }, st.attendanceRate[r].enrolled), h('td', { class: 'num' }, st.attendanceRate[r].attended), h('td', { class: 'num' }, st.attendanceRate[r].sameDay), h('td', { class: 'num' }, st.attendanceRate[r].byMakeup), h('td', { class: 'num' }, pct(st.attendanceRate[r].rate)), h('td', { class: 'num' }, st.withdrawnByRound[r] || 0)))),
               ),
             ),
-            h('p', { class: 'note' }, '受講率＝その回に在籍している人のうち、出席した人（記録なし・時間切れ・補講済みを含む）の割合。第0回は自由参加なので含めていません。'),
+            h('p', { class: 'note' }, '受講率＝その回に在籍している人のうち、受講した人（当日の出席・記録なし・時間切れと、当日欠席して補講を受けた「補講済み」）の割合。内訳も出しています。第0回は自由参加なので含めていません。'),
           ),
           h(
             'section',
@@ -343,7 +343,7 @@
                   boot.term.rounds.map(r => {
                     const x = rec.get(r);
                     const m = mk.get(r);
-                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, ({ 欠席: '当日欠席', 記録なし: '出席（記録なし）', '出席・記録なし': '出席（記録なし）', 時間切れ: '出席（時間切れ）' })[x?.attendance] || x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
+                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, ({ 欠席: '当日欠席', 記録なし: '出席（記録なし）', '出席・記録なし': '出席（記録なし）', 時間切れ: '出席（時間切れ）', '欠席・補講済み': '欠席・補講済み' })[x?.attendance] || x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
                   }),
                 ),
               ),

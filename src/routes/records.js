@@ -6,6 +6,7 @@ import { normNumber, normText } from '../lib/normalize.js';
 import { once } from '../lib/once.js';
 import { rosterFor, rosterForRound, isEnrolled } from '../domain/roster.js';
 import { activeTerm } from './auth.js';
+import { ATTENDED, MAKEUP_DONE } from '../domain/makeup.js';
 
 export const SELECTABLE = ['出席', '記録なし', '時間切れ', '欠席'];
 /** 第0回は自由参加：来た人に出席をつけるだけ（欠席・タイピング・クイズ・補講なし）。 */
@@ -94,11 +95,14 @@ async function saveRecord(env, req) {
       if (a != null && !SELECTABLE.includes(a)) throw new HttpError(400, '出欠の区分が不正です（△×は「補講」から付けてください）');
       if (a != null && round === FREE_ROUND && !FREE_ATTENDANCE.includes(a)) throw new HttpError(400, '第0回は自由参加なので、来た人に「出席」をつけるだけです');
       patch.attendance = a;
+      // 補講がある人（できなかった以外）に出席系を付けたら、当日欠席が分かるよう「補講済み」として残す
+      if (a != null && ATTENDED.includes(a) && (await hasMakeup(t, studentId, round))) patch.attendance = MAKEUP_DONE;
     }
     if (patch.typing != null && !('attendance' in b)) {
       const [cur] = await t.query('select attendance from records where student_id=$1 and round=$2', [studentId, round]);
-      // 未入力か△（補講予定）のときだけ出席にする。当日欠席と×はそのまま残す。
-      if (!cur || cur.attendance == null || cur.attendance === '欠席・補講予定') patch.attendance = '出席';
+      // 未入力なら出席、△（補講予定）なら補講済みにする。当日欠席と×はそのまま残す。
+      if (!cur || cur.attendance == null) patch.attendance = (await hasMakeup(t, studentId, round)) ? MAKEUP_DONE : '出席';
+      else if (cur.attendance === '欠席・補講予定') patch.attendance = MAKEUP_DONE;
     }
     const row = await writeRecord(t, { studentId, round, patch, version: b.version ?? 0, operatorId: op.id });
     return { record: publicRecord(row) };
@@ -145,6 +149,11 @@ async function getRoster(env, req) {
     isFreeRound: round === FREE_ROUND,
     groups,
   });
+}
+
+async function hasMakeup(t, studentId, round) {
+  const [m] = await t.query('select 1 from makeups where student_id=$1 and round=$2 and not failed', [studentId, round]);
+  return !!m;
 }
 
 async function setNickname(env, req, m) {

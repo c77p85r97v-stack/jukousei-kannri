@@ -4,7 +4,7 @@ import { requireStaff } from '../lib/auth.js';
 import { audit } from '../lib/audit.js';
 import { once } from '../lib/once.js';
 import { isEnrolled, groupAt, currentGroupSql } from '../domain/roster.js';
-import { makeupStatus, ATTENDED } from '../domain/makeup.js';
+import { makeupStatus, ATTENDED, MAKEUP_DONE } from '../domain/makeup.js';
 import { indivSlots, indivLabel, slotCache, EXTRA_NO } from '../domain/indiv.js';
 import { normText } from '../lib/normalize.js';
 import { termOfStudent, assertRound, writeRecord, publicRecord, FREE_ROUND } from './records.js';
@@ -35,8 +35,10 @@ async function publicMakeup(t, m, record, termId) {
 }
 
 /** 記録の出欠を、補講の操作に合わせて自動で変える（すでに出席系なら触らない）。 */
-async function setAttendance(t, studentId, round, attendance, operatorId, action) {
+async function setAttendance(t, studentId, round, attendance, operatorId, action, { undoDone = false } = {}) {
   const [cur] = await t.query('select * from records where student_id=$1 and round=$2', [studentId, round]);
+  // 補講を取り消したら「補講済み」は当日欠席に戻す（タイピングは残す）
+  if (undoDone && cur && cur.attendance === MAKEUP_DONE) return writeRecord(t, { studentId, round, patch: { attendance }, version: cur.version, operatorId, action });
   if (cur && ATTENDED.includes(cur.attendance)) return cur;
   if (cur && cur.attendance === attendance) return cur;
   return writeRecord(t, { studentId, round, patch: { attendance }, version: cur ? cur.version : 0, operatorId, action });
@@ -127,7 +129,7 @@ async function cancel(env, req) {
     if (!before) throw new HttpError(404, '補講が登録されていません');
     await t.query('delete from makeups where id=$1', [before.id]);
     await audit(t, op.id, '補講の取り消し', 'makeups', before.id, before, null);
-    const rec = await setAttendance(t, studentId, round, '欠席', op.id, '補講の取り消し');
+    const rec = await setAttendance(t, studentId, round, '欠席', op.id, '補講の取り消し', { undoDone: true });
     return { makeup: null, record: publicRecord(rec) };
   });
   return json(result);
