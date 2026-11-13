@@ -376,7 +376,7 @@
           h('h2', {}, '年度の設定'),
           h('div', { class: 'bar' }, h('label', { class: 'inline' }, '年度の名前 ', h('input', { id: 'termName', value: term.name, style: 'min-width:220px' })), h('label', { class: 'inline' }, '初期受講生数 ', h('input', { id: 'termInitial', inputMode: 'numeric', style: 'width:90px', value: term.initial_count ?? '', placeholder: '自動' }))),
           h('div', { class: 'bar' }, h('label', { class: 'inline' }, '回 ', h('input', { id: 'termRounds', value: term.rounds.join(','), style: 'width:170px' })), h('label', { class: 'inline' }, 'タイピングの回 ', h('input', { id: 'termTyping', value: term.typing_rounds.join(','), style: 'width:150px' })), h('label', { class: 'inline' }, 'クイズの回 ', h('input', { id: 'termQuiz', value: term.quiz_rounds.join(','), style: 'width:90px' }))),
-          h('p', { class: 'note' }, '初期受講生数は継続率の分母です。空のままにすると、最初の回の在籍人数を使います。回は「0,1,2」のように数字をカンマで区切ります。'),
+          h('p', { class: 'note' }, '初期受講生数は継続率の分母です。空のままにすると、登録されている受講生の人数を使います。第0回は自由参加（出席のみ）として扱います。回は「0,1,2」のように数字をカンマで区切ります。'),
           h('div', { class: 'bar' }, btn('年度の設定を保存', saveTerm, 'primary'), h('span', { class: 'grow' }), btn('新しい年度を始める', newTerm, '')),
         ),
       );
