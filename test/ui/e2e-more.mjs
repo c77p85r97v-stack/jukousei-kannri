@@ -40,8 +40,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await loginGaUi(page, 'B');
     await pick(page, '月', 6);
     const opts = await row(page, '小川 五').locator('select.att option').allInnerTexts();
-    assert.ok(opts.includes('当日欠席'));
-    assert.ok(!opts.includes('欠席'));
+    assert.deepEqual(opts, ['（未入力）', '出席', '出席（記録なし）', '出席（時間切れ）', '当日欠席']);
     await row(page, '小川 五').locator('select.att').selectOption('欠席');
     await page.locator('#entry .group-head').first().getByText('欠席 1人・補講 0人').waitFor();
     await row(page, '小川 五').locator('input.nick').fill('おがっち');

@@ -38,8 +38,8 @@
   for (const b of $$('#tabs button')) b.addEventListener('click', () => openTab(b.dataset.tab));
 
   // ---------- 記録入力 ----------
-  const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席'];
-  const LABEL = { 欠席: '当日欠席' };
+  const SELECTABLE = ['出席', '記録なし', '時間切れ', '欠席'];
+  const LABEL = { 記録なし: '出席（記録なし）', 時間切れ: '出席（時間切れ）', 欠席: '当日欠席' };
   const AUTO_LABEL = { '欠席・補講予定': '△ 欠席・補講予定', '欠席・補講できず': '× 欠席・補講できず' };
   const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず'];
   const entry = $('#entry');

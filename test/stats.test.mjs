@@ -21,7 +21,7 @@ async function setup() {
     db.query('insert into records(student_id, round, attendance, typing, quiz) values ($1,$2,$3,$4,$5)', [s(name).id, round, attendance, typing, quiz]);
   // 第3回：在籍8人のうち出席系6人
   for (const n of ['青木', '井上', '上田', '加藤', '追加 1']) await rec(n, 3, '出席', 100);
-  await rec('追加 2', 3, '出席・記録なし');
+  await rec('追加 2', 3, '記録なし');
   await rec('追加 3', 3, '欠席');
   // 伸び：青木は第1回なし・第2回200→第8回150（+50）、井上は第1回100→第8回120（−20）
   await rec('青木', 2, '出席', 200);

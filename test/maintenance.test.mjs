@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { newEnv, seed, call, loginGa, loginAdmin, memoryBlob, closeEnv } from './helpers.mjs';
 
 after(closeEnv);
-import { dumpAll } from '../src/routes/maintenance.js';
+import { dumpAll, restoreAll } from '../src/routes/maintenance.js';
 
 async function setup() {
   const env = await newEnv({ blob: memoryBlob() });
@@ -161,4 +161,16 @@ test('dumpAll reads every table inside one read-only snapshot transaction', asyn
   const dump = await dumpAll(spy);
   assert.equal(dump.tables.students.length, 6);
   assert.match(seen[0], /repeatable read/i);
+});
+
+test('restoring an old backup turns 出席・記録なし into 記録なし', async () => {
+  const env = await newEnv();
+  const f = await seed(env);
+  const st = f.students[0];
+  await env.db.query(`insert into records(student_id, round, attendance) values ($1, 2, '記録なし')`, [st.id]);
+  const dump = await dumpAll(env.db);
+  dump.tables.records[0].attendance = '出席・記録なし';
+  await env.db.tx(t => restoreAll(t, dump));
+  const [r] = await env.db.query('select attendance from records where student_id=$1 and round=2', [st.id]);
+  assert.equal(r.attendance, '記録なし');
 });

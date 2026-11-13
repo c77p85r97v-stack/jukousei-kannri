@@ -33,7 +33,7 @@ test('cells: typing value, or the old marks for attendance without typing', asyn
   const { rec, sheet, row } = await setup();
   await rec('青木', 0, '出席');
   await rec('青木', 1, '出席', 145.2, 11);
-  await rec('青木', 2, '出席・記録なし');
+  await rec('青木', 2, '出席・記録なし'); // 古いデータ（移行前）も「記録なし」と出す
   await rec('青木', 3, '記録なし');
   await rec('青木', 4, '時間切れ');
   await rec('青木', 5, '欠席');
@@ -41,7 +41,7 @@ test('cells: typing value, or the old marks for attendance without typing', asyn
   const r = row((await sheet()).body, '青木');
   assert.equal(r.cells[0].value, '〇');
   assert.equal(r.cells[1].value, '145.2');
-  assert.equal(r.cells[2].value, '〇');
+  assert.equal(r.cells[2].value, '記録なし');
   assert.equal(r.cells[3].value, '記録なし');
   assert.equal(r.cells[4].value, '時間切れ');
   assert.equal(r.cells[5].value, '欠席');

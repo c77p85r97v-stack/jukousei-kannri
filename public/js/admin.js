@@ -184,7 +184,8 @@
         }));
 
   // ---------- 補講 ----------
-  const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ'];
+  const SELECTABLE = ['出席', '記録なし', '時間切れ'];
+  const ATT_LABEL = { 記録なし: '出席（記録なし）', 時間切れ: '出席（時間切れ）' };
   tabs.makeups = async () => {
     const root = $('#tab-makeups');
     await loadGroups();
@@ -239,7 +240,7 @@
               await tabs.makeups();
             }
           });
-          const att = h('select', { 'aria-label': `出欠 ${m.name}` }, h('option', { value: m.record && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance || '' : '' }, m.record && m.record.attendance && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance : '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, a)));
+          const att = h('select', { 'aria-label': `出欠 ${m.name}` }, h('option', { value: m.record && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance || '' : '' }, m.record && m.record.attendance && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance : '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, ATT_LABEL[a] || a)));
           if (m.record && SELECTABLE.includes(m.record.attendance)) att.value = m.record.attendance;
           att.addEventListener('change', () => SELECTABLE.includes(att.value) && saveRecord({ attendance: att.value }));
           const typing = term.typing_rounds.includes(m.round) ? h('input', { class: 'typing', style: 'width:80px;text-align:right', inputMode: 'decimal', value: m.record?.typing ?? '', 'aria-label': `タイピング ${m.name}` }) : null;

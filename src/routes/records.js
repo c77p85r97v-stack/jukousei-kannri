@@ -7,7 +7,7 @@ import { once } from '../lib/once.js';
 import { rosterFor, rosterForRound, isEnrolled } from '../domain/roster.js';
 import { activeTerm } from './auth.js';
 
-export const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席'];
+export const SELECTABLE = ['出席', '記録なし', '時間切れ', '欠席'];
 /** 第0回は自由参加：来た人に出席をつけるだけ（欠席・タイピング・クイズ・補講なし）。 */
 export const FREE_ROUND = 0;
 export const FREE_ATTENDANCE = ['出席'];

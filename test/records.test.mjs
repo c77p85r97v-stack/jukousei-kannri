@@ -73,9 +73,15 @@ test('typing auto-sets 出席 but keeps explicit attendance', async () => {
   const { s, a, save } = await setup();
   const r1 = await save(a, { studentId: s('青木').id, round: 1, typing: 120 });
   assert.equal(r1.body.record.attendance, '出席');
-  const r2 = await save(a, { studentId: s('井上').id, round: 1, attendance: '出席・記録なし' });
-  assert.equal(r2.body.record.attendance, '出席・記録なし');
+  const r2 = await save(a, { studentId: s('井上').id, round: 1, attendance: '記録なし' });
+  assert.equal(r2.body.record.attendance, '記録なし');
   assert.equal(r2.body.record.typing, null);
+});
+
+test('the old 〇 (出席・記録なし) is no longer a choice; 記録なし and 時間切れ are', async () => {
+  const { s, a, save } = await setup();
+  assert.equal((await save(a, { studentId: s('青木').id, round: 2, attendance: '出席・記録なし' })).status, 400);
+  assert.equal((await save(a, { studentId: s('青木').id, round: 2, attendance: '時間切れ' })).status, 200);
 });
 
 test('partial save keeps other fields', async () => {

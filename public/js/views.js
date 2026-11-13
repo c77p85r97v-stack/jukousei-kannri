@@ -175,7 +175,7 @@
     paint();
     root.replaceChildren(
       h('div', { class: 'bar' }, seg, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: () => load() }, '最新にする')),
-      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数、〇は出席（記録なし）、△は補講予定、×は補講できず。'),
+      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数。「記録なし」「時間切れ」は来たけど数字がない人、第0回の〇は参加、△は補講予定、×は補講できず。'),
       body,
     );
     async function load() {
@@ -256,7 +256,7 @@
                 h('tbody', {}, Object.keys(st.attendanceRate).map(Number).map(r => h('tr', {}, h('td', {}, `第${r}回`), h('td', { class: 'num' }, st.attendanceRate[r].enrolled), h('td', { class: 'num' }, st.attendanceRate[r].attended), h('td', { class: 'num' }, pct(st.attendanceRate[r].rate)), h('td', { class: 'num' }, st.withdrawnByRound[r] || 0)))),
               ),
             ),
-            h('p', { class: 'note' }, '受講率＝その回に在籍している人のうち、出席した人（〇・記録なし・時間切れ・補講済みを含む）の割合。第0回は自由参加なので含めていません。'),
+            h('p', { class: 'note' }, '受講率＝その回に在籍している人のうち、出席した人（記録なし・時間切れ・補講済みを含む）の割合。第0回は自由参加なので含めていません。'),
           ),
           h(
             'section',
@@ -343,7 +343,7 @@
                   boot.term.rounds.map(r => {
                     const x = rec.get(r);
                     const m = mk.get(r);
-                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, x?.attendance === '欠席' ? '当日欠席' : x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
+                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, ({ 欠席: '当日欠席', 記録なし: '出席（記録なし）', '出席・記録なし': '出席（記録なし）', 時間切れ: '出席（時間切れ）' })[x?.attendance] || x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
                   }),
                 ),
               ),

@@ -38,6 +38,8 @@ export async function restoreAll(t, dump) {
     }
     await t.query(`select setval(pg_get_serial_sequence('${name}', 'id'), coalesce((select max(id) from ${name}), 0) + 1, false)`);
   }
+  // 古いバックアップの「出席・記録なし」は今の「記録なし」にそろえる
+  await t.query(`update records set attendance = '記録なし' where attendance = '出席・記録なし'`);
 }
 
 function blobOf(env) {
