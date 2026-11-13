@@ -9,6 +9,7 @@ import * as changes from './routes/changes.js';
 import * as reports from './routes/reports.js';
 import * as maintenance from './routes/maintenance.js';
 import * as indiv from './routes/indiv.js';
+import * as line from './routes/line.js';
 
 // [メソッド, パス(正規表現), 処理(env, req, match)]
 export const ROUTES = [
@@ -16,6 +17,7 @@ export const ROUTES = [
   ...auth.routes,
   ...master.routes,
   ...indiv.routes,
+  ...line.routes,
   ...importer.routes,
   ...records.routes,
   ...makeups.routes,

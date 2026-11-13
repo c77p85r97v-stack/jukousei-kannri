@@ -79,6 +79,10 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await page.locator('#trRound').selectOption({ label: '第6回' });
     await page.getByRole('button', { name: '移動を登録' }).click();
     await page.locator('#trList tr', { hasText: '井上 二' }).getByText('月 A → 月 B').waitFor();
+    await page.locator('#trList tr', { hasText: '井上 二' }).getByRole('button', { name: 'LINE文' }).click();
+    await page.waitForFunction(() => document.querySelector('#lineText').value.includes('曜日移動'));
+    assert.match(await page.locator('#lineText').inputValue(), /月曜 A班のイノウエ ジさんが曜日移動を希望されたため、第6回から月曜 B班に移動を行いました。/);
+    await page.locator('#lineDialog').getByRole('button', { name: '閉じる' }).click();
     await page.goto(BASE + '/ga.html');
     await pick(page, '月', 6);
     await page.locator('#entry section.group', { hasText: 'B の班' }).locator('tr[data-student]', { hasText: '井上 二' }).waitFor();

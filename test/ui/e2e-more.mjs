@@ -210,6 +210,26 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await shot(page, 'ga-indiv');
   });
 
+  await check('LINE報告文：自分の班の欠席者がカタカナで入り、コピーできる／補講のLINE文', async page => {
+    await loginGaUi(page, 'A');
+    await pick(page, '月', 3);
+    await page.locator('#entry .group-head').first().getByRole('button', { name: 'LINE報告文' }).click();
+    const area = page.locator('#lineText');
+    await page.waitForFunction(() => !document.querySelector('#lineText').value.includes('読み込み中'));
+    const text = await area.inputValue();
+    assert.match(text, /^お疲れ様です。Aです。\n月曜 第3回の受講生管理が終わりました。/);
+    assert.match(text, /アオキ ハジメさん（補講：個別補講②木曜 13:00）/);
+    assert.match(text, /システム入力済みです。$/);
+    await page.locator('#lineCopy').click();
+    await page.locator('#lineMsg').getByText('コピーしました').waitFor();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), text);
+    await shot(page, 'ga-line');
+    await page.locator('#lineDialog').getByRole('button', { name: '閉じる' }).click();
+    await row(page, '井上 二').getByRole('button', { name: 'LINE文' }).click();
+    await page.waitForFunction(() => document.querySelector('#lineText').value.includes('決まりました'));
+    assert.match(await page.locator('#lineText').inputValue(), /月曜 A班のイノウエ ジさん（第3回欠席）の補講が、個別補講⑧5\/8 15:00〜に決まりました。/);
+  });
+
   const admin = await import('./e2e-admin.mjs').catch(e => (e.code === 'ERR_MODULE_NOT_FOUND' ? null : Promise.reject(e)));
   if (admin) await admin.run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, assert, pick, row });
 

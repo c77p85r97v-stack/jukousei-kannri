@@ -21,7 +21,7 @@ const browser = await chromium.launch();
 
 const results = [];
 async function check(name, fn) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, permissions: ['clipboard-read', 'clipboard-write'] });
   ctx.setDefaultTimeout(8000);
   const page = await ctx.newPage();
   const errors = [];

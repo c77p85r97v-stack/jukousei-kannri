@@ -1,7 +1,7 @@
 // GA 画面：記録入力・補講・検索・名簿・集計
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, searchView, indivView, slotRoundPicker, statusChip, placeText } = koshuViews;
+  const { rosterView, statsView, searchView, indivView, lineDialog, slotRoundPicker, statusChip, placeText } = koshuViews;
 
   const me = await requireLogin();
   $('#whoName').textContent = `${me.name} さん`;
@@ -97,7 +97,7 @@
         return h(
           'section',
           { class: 'group' },
-          h('div', { class: 'group-head' }, h('h3', {}, `${data.slot.code}　${g.gaName} の班`), g.gaId === me.id ? h('span', { class: 'mine' }, '自分の班') : null, h('span', { class: 'note' }, `${g.members.length}人`), counts),
+          h('div', { class: 'group-head' }, h('h3', {}, `${data.slot.code}　${g.gaName} の班`), g.gaId === me.id ? h('span', { class: 'mine' }, '自分の班') : null, g.gaId === me.id ? h('button', { type: 'button', class: 'small line', onclick: async () => { await flushAll(); lineDialog('LINE の報告文', `/api/line/daily?slotId=${data.slot.id}&round=${data.round}`); } }, 'LINE報告文') : null, h('span', { class: 'note' }, `${g.members.length}人`), counts),
           h(
             'div',
             { class: 'scroll' },
@@ -314,6 +314,7 @@
         'div',
         { style: 'margin-top:4px;display:flex;gap:4px;flex-wrap:wrap' },
         h('button', { type: 'button', class: 'small', onclick: () => openMakeup(row) }, '変更'),
+        mk.place !== '未定' && !mk.failed ? h('button', { type: 'button', class: 'small line', onclick: () => lineDialog('補講が決まったときの LINE 文', `/api/line/makeup?studentId=${row.m.studentId}&round=${row.round}`) }, 'LINE文') : null,
         mk.status === '予定' || mk.status === '未定' ? h('button', { type: 'button', class: 'small danger', onclick: () => makeupAction(row, '/api/makeups/fail') }, 'できなかった') : null,
         h('button', { type: 'button', class: 'small', onclick: () => makeupAction(row, '/api/makeups/cancel') }, '取り消し'),
       ),

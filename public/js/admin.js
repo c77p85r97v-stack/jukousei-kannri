@@ -1,7 +1,7 @@
 // 管理者画面
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, indivView, statusChip } = koshuViews;
+  const { rosterView, statsView, indivView, lineDialog, statusChip } = koshuViews;
 
   const me = await requireLogin('admin');
   $('#whoName').textContent = `${me.name} さん（管理者）`;
@@ -319,7 +319,7 @@
     $('#trBox').replaceChildren(
       table(
         'trList',
-        ['名前', '移動', 'この回から', '受講生管理', ''],
+        ['名前', '移動', 'この回から', '受講生管理', '', '報告'],
         tr.map(t =>
           h(
             'tr',
@@ -329,6 +329,7 @@
             td(roundLabel(t.fromRound)),
             td(t.cancelledAt ? '' : t.managerCheckedBy ? h('span', { class: 'chip done' }, `確認：${t.managerCheckedName}`) : act(`/api/admin/transfers/${t.id}/check`, '確認する')),
             td(t.cancelledAt ? h('span', { class: 'chip none' }, '取り消し済み') : act(`/api/admin/transfers/${t.id}/cancel`, '取り消し', 'small danger')),
+            td(t.cancelledAt ? '' : btn('LINE文', () => lineDialog('曜日変更の LINE 文', `/api/line/transfer?id=${t.id}`))),
           ),
         ),
         'コマ移動の登録はありません',

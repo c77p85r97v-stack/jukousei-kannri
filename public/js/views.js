@@ -305,5 +305,37 @@
     return { refresh: load };
   }
 
-  window.koshuViews = { rosterView, statsView, searchView, indivView, slotRoundPicker, statusChip, placeText, pct, fix1 };
+  // ---------- LINE の報告文（コピーするだけ） ----------
+  async function lineDialog(title, url) {
+    let dlg = document.getElementById('lineDialog');
+    if (!dlg) document.body.append((dlg = h('dialog', { id: 'lineDialog' })));
+    const area = h('textarea', { id: 'lineText', readOnly: true, rows: 8, style: 'width:100%;font:inherit' });
+    const msg = h('p', { class: 'note', id: 'lineMsg', role: 'status' });
+    const warn = h('p', { class: 'error', id: 'lineWarn', role: 'alert' });
+    const copy = h('button', { type: 'button', class: 'primary', id: 'lineCopy' }, 'コピーする');
+    dlg.replaceChildren(h('div', { class: 'dlg' }, h('h3', {}, title), area, warn, msg, h('div', { class: 'actions' }, h('button', { type: 'button', onclick: () => dlg.close() }, '閉じる'), copy)));
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(area.value);
+      } catch {
+        area.select();
+        document.execCommand('copy');
+      }
+      msg.textContent = 'コピーしました。LINE に貼り付けて送ってください。';
+    });
+    dlg.showModal();
+    area.value = '読み込み中…';
+    copy.disabled = true;
+    try {
+      const d = await api.get(url);
+      area.value = d.text;
+      copy.disabled = false;
+      if (d.unentered) warn.textContent = `出欠が未入力の人が ${d.unentered}人います。入力してから送ってください。`;
+    } catch (e) {
+      area.value = '';
+      warn.textContent = e.message;
+    }
+  }
+
+  window.koshuViews = { rosterView, statsView, searchView, indivView, lineDialog, slotRoundPicker, statusChip, placeText, pct, fix1 };
 })();
