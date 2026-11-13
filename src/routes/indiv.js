@@ -80,6 +80,13 @@ async function saveSlot(env, req) {
   return json(
     await env.db.tx(async t => {
       const [before] = await t.query('select * from indiv_slots where term_id=$1 and round=$2 and no=$3 for update', [term.id, round, no]);
+      if (vals[3]) {
+        const [n] = await t.query(
+          `select count(*)::int as n from makeups m join students st on st.id = m.student_id where st.term_id = $1 and m.round = $2 and m.place = '個別' and m.indiv_no = $3`,
+          [term.id, round, no],
+        );
+        if (n.n) throw new HttpError(409, `この枠には${n.n}人が登録されています。先にその人たちの枠を変えてから「実施なし」にしてください`);
+      }
       const [row] = await t.query(
         `insert into indiv_slots(term_id, round, no, label, host, room, closed) values ($1,$2,$3,$4,$5,$6,$7)
          on conflict (term_id, round, no) do update set label=excluded.label, host=excluded.host, room=excluded.room, closed=excluded.closed

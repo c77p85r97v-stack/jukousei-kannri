@@ -4,6 +4,7 @@ import { requireAdmin } from '../lib/auth.js';
 import { audit } from '../lib/audit.js';
 import { normText } from '../lib/normalize.js';
 import { groupAt } from '../domain/roster.js';
+import { ATTENDED } from '../domain/makeup.js';
 import { termOfStudent, assertRound } from './records.js';
 import { activeTerm } from './auth.js';
 
@@ -40,6 +41,9 @@ async function addWithdrawal(env, req) {
     await env.db.tx(async t => {
       const term = await termOfStudent(t, studentId);
       assertRound(term, fromRound);
+      // 解約した回より後に受けた記録があると食い違うので止める
+      const [later] = await t.query('select round from records where student_id=$1 and round >= $2 and attendance = any($3) order by round limit 1', [studentId, fromRound, ATTENDED]);
+      if (later) throw new HttpError(409, `第${later.round}回に受けた記録があります。「この回から受けていない」は第${later.round + 1}回以降を選ぶか、記録を直してください`);
       let row;
       try {
         [row] = await t.query('insert into withdrawals(student_id, from_round, reason, created_by) values ($1,$2,$3,$4) returning *', [studentId, fromRound, normText(b.reason), op.id]);
@@ -104,6 +108,11 @@ async function addTransfer(env, req) {
       if (!g || g.term_id !== term.id) throw new HttpError(400, '移動先の班を選んでください');
       const fromGroupId = await groupAt(t, studentId, fromRound);
       if (fromGroupId === toGroupId) throw new HttpError(400, '移動先が今の班と同じです');
+      const [wd] = await t.query('select from_round from withdrawals where student_id=$1 and cancelled_at is null', [studentId]);
+      if (wd && wd.from_round <= fromRound) throw new HttpError(409, `この受講生は第${wd.from_round}回から解約しています。移動するときは先に解約を取り消してください`);
+      // 移動先の班が、その後の回の補講先になっていると「自分の班に補講」になるので止める
+      const [mk] = await t.query(`select round from makeups where student_id=$1 and round >= $2 and place='他班' and host_group_id=$3 order by round limit 1`, [studentId, fromRound, toGroupId]);
+      if (mk) throw new HttpError(409, `第${mk.round}回の補講先が移動先の班になっています。先にその補講の振替先を変えてください`);
       const [row] = await t.query('insert into transfers(student_id, from_group_id, to_group_id, from_round, created_by) values ($1,$2,$3,$4,$5) returning *', [
         studentId, fromGroupId, toGroupId, fromRound, op.id,
       ]);

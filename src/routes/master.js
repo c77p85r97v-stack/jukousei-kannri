@@ -33,7 +33,7 @@ async function saveTerm(env, req) {
   return json(
     await env.db.tx(async t => {
       let before = null;
-      let base = { rounds: [0, 1, 2, 3, 4, 5, 6, 7, 8], typing_rounds: [1, 2, 3, 4, 5, 6, 7, 8], quiz_rounds: [0, 8] };
+      let base = { rounds: [0, 1, 2, 3, 4, 5, 6, 7, 8], typing_rounds: [1, 2, 3, 4, 5, 6, 7, 8], quiz_rounds: [1, 8] };
       if (b.id) {
         [before] = await t.query('select * from terms where id=$1', [b.id]);
         if (!before) throw new HttpError(404, '年度が見つかりません');
@@ -43,6 +43,20 @@ async function saveTerm(env, req) {
       const tr = typing || base.typing_rounds;
       const qr = quiz || base.quiz_rounds;
       if (![...tr, ...qr].every(n => r.includes(n))) throw new HttpError(400, 'タイピング・クイズの回は、回の中から選んでください');
+      if ([...tr, ...qr].includes(0)) throw new HttpError(400, '第0回は自由参加なので、タイピング・クイズの回にはできません');
+      if (before) {
+        // すでに記録がある回を外すと、その記録が画面から見えなくなるので止める
+        const used = await t.query(
+          `select r.round, bool_or(true) as any, bool_or(r.typing is not null) as typing, bool_or(r.quiz is not null) as quiz
+             from records r join students st on st.id = r.student_id where st.term_id = $1 group by r.round order by r.round`,
+          [before.id],
+        );
+        for (const u of used) {
+          if (!r.includes(u.round)) throw new HttpError(409, `第${u.round}回にはすでに記録があるので、回から外せません`);
+          if (u.typing && !tr.includes(u.round)) throw new HttpError(409, `第${u.round}回にはすでにタイピングの記録があるので、タイピングの回から外せません`);
+          if (u.quiz && !qr.includes(u.round)) throw new HttpError(409, `第${u.round}回にはすでにクイズの記録があるので、クイズの回から外せません`);
+        }
+      }
       if (b.active) await t.query('update terms set active=false where active');
       let row;
       if (before) {

@@ -81,6 +81,7 @@ async function saveRecord(env, req) {
       if (v === 'invalid') throw new HttpError(400, 'タイピングは数字で入力してください。記録が取れないときは出欠で「記録なし」「時間切れ」を選んでください');
       if (v != null && !term.typing_rounds.includes(round)) throw new HttpError(400, 'この回はタイピングを記録しません');
       if (v != null && v > 99999) throw new HttpError(400, 'タイピングの値が大きすぎます');
+      if (v === 0) throw new HttpError(400, 'タイピングの秒数は0より大きい数を入れてください');
       patch.typing = v;
     }
     if ('quiz' in b) {

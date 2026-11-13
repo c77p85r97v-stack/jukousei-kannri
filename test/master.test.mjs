@@ -30,7 +30,7 @@ test('term settings can change rounds', async () => {
   const env = await newEnv();
   const f = await seed(env);
   const c = await loginAdmin(env, f);
-  const r = await call(env, 'POST', '/api/admin/terms', { id: f.term.id, name: f.term.name, rounds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], typingRounds: [1, 9], quizRounds: [0, 9], initialCount: 400, active: true }, c);
+  const r = await call(env, 'POST', '/api/admin/terms', { id: f.term.id, name: f.term.name, rounds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], typingRounds: [1, 9], quizRounds: [1, 9], initialCount: 400, active: true }, c);
   assert.equal(r.status, 200);
   const [t] = await env.db.query('select * from terms where id=$1', [f.term.id]);
   assert.deepEqual(t.typing_rounds, [1, 9]);
