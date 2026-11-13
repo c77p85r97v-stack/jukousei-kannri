@@ -74,6 +74,7 @@ table.grid{border-collapse:collapse;width:100%;font-size:13px}
 @keyframes flash{from{background:var(--ok-bg)}to{background:transparent}}
 .rowmsg{color:var(--ng);font-size:12px;font-weight:600}
 
+.indiv.closed{opacity:.6}
 .chip{display:inline-block;border-radius:20px;padding:1px 9px;font-size:12px;font-weight:700;white-space:nowrap}
 .chip.plan{background:var(--warn-bg);color:var(--warn)}
 .chip.done{background:var(--ok-bg);color:var(--ok)}

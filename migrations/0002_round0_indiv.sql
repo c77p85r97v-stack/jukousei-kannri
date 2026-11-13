@@ -22,4 +22,5 @@ create table indiv_slots (
 
 alter table makeups add column indiv_no int check (indiv_no between 1 and 8);
 alter table makeups add column indiv_when text;
+alter table makeups add column indiv_by int references staff(id);
 alter table makeups add constraint makeups_indiv_only check (indiv_no is null or place = '個別');

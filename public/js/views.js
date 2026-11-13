@@ -15,7 +15,7 @@
     const [cls, text] = STATUS_CHIP[status] || ['none', status];
     return h('span', { class: `chip ${cls}` }, text);
   }
-  const placeText = m => (m.place === '他班' ? m.hostLabel : m.place === '個別' ? '個別' : '場所未定');
+  const placeText = m => (m.place === '他班' ? m.hostLabel : m.place === '個別' ? (m.indivLabel ? `個別 ${m.indivLabel}` : '個別（枠未定）') : '場所未定');
 
   /** 「今日の曜日」に近いコマ（なければ先頭） */
   function defaultSlot(slots) {
@@ -250,5 +250,60 @@
     return { focus: () => input.focus(), show };
   }
 
-  window.koshuViews = { rosterView, statsView, searchView, slotRoundPicker, statusChip, placeText, pct, fix1 };
+  // ---------- 個別補講 ①〜⑧（名簿・印刷） ----------
+  /** opts.onEdit(slot, round) / opts.onEditBase() があれば、管理者の変更ボタンを出す。 */
+  function indivView(root, boot, opts = {}) {
+    const rounds = boot.term.rounds.filter(r => r !== 0);
+    let round = rounds.includes(memo.get('round')) ? memo.get('round') : rounds[0];
+    const seg = h('div', { class: 'seg', id: 'ivRoundSeg', role: 'group', 'aria-label': '回' });
+    const body = h('div', { id: 'ivBody' });
+    const paint = () => {
+      for (const b of seg.children) b.classList.toggle('on', Number(b.dataset.round) === round);
+    };
+    for (const r of rounds) seg.append(h('button', { type: 'button', dataset: { round: r }, onclick: () => { round = r; paint(); load(); } }, `第${r}回`));
+    paint();
+    root.replaceChildren(
+      h('div', { class: 'bar no-print' }, seg, h('span', { class: 'grow' }), opts.onEditBase ? h('button', { type: 'button', onclick: () => opts.onEditBase() }, '①〜⑦の基本の時間') : null, h('button', { type: 'button', class: 'primary', onclick: () => window.print() }, '印刷する')),
+      body,
+    );
+    const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+    const studentTable = (list, extra) =>
+      h(
+        'div',
+        { class: 'scroll' },
+        h(
+          'table',
+          { class: 'grid' },
+          h('thead', {}, h('tr', {}, h('th', {}, '出席'), h('th', {}, '元コマ'), h('th', {}, 'GA'), h('th', {}, 'ナマエ'), h('th', {}, 'ニックネーム'), extra ? h('th', {}, extra[0]) : null, h('th', {}, '状態'))),
+          h('tbody', {}, list.length ? list.map(s => h('tr', {}, h('td', {}, h('span', { class: 'checkbox' })), h('td', {}, s.homeSlot), h('td', {}, s.gaName), h('td', {}, s.kana || s.name), h('td', {}, s.nickname || ''), extra ? h('td', {}, extra[1](s)) : null, h('td', {}, statusChip(s.status)))) : h('tr', {}, h('td', { colSpan: extra ? 7 : 6, class: 'empty' }, 'いません'))),
+        ),
+      );
+    async function load() {
+      memo.set('round', round);
+      body.replaceChildren(h('p', { class: 'empty' }, '読み込み中…'));
+      try {
+        const d = await api.get(`/api/indiv?termId=${boot.term.id}&round=${round}`);
+        const cards = d.slots.map(sl => {
+          const extra = sl.no === 8 ? [['日時', s => s.indivWhen || ''], ['担当', s => s.inCharge || '']] : null;
+          const info = [sl.host ? `担当：${sl.host}` : null, sl.room ? `場所：${sl.room}` : null].filter(Boolean).join('　');
+          return h(
+            'section',
+            { class: `sheet card indiv${sl.closed ? ' closed' : ''}`, dataset: { no: sl.no } },
+            h('div', { class: 'group-head' }, h('h3', {}, `第${round}回　${CIRCLED[sl.no - 1]} ${sl.label}`), sl.closed ? h('span', { class: 'chip none' }, '実施なし') : null, h('span', { class: 'note' }, `${sl.students.length}人`), info ? h('span', { class: 'note' }, info) : null, opts.onEdit && sl.no !== 8 ? h('button', { type: 'button', class: 'small no-print', onclick: () => opts.onEdit(sl, round, load) }, '変更') : null),
+            sl.no === 8
+              ? h('div', { class: 'scroll' }, h('table', { class: 'grid' }, h('thead', {}, h('tr', {}, h('th', {}, '出席'), h('th', {}, '日時'), h('th', {}, '担当'), h('th', {}, '元コマ'), h('th', {}, 'GA'), h('th', {}, 'ナマエ'), h('th', {}, 'ニックネーム'), h('th', {}, '状態'))), h('tbody', {}, sl.students.length ? sl.students.map(s => h('tr', {}, h('td', {}, h('span', { class: 'checkbox' })), h('td', {}, s.indivWhen || ''), h('td', {}, s.inCharge || ''), h('td', {}, s.homeSlot), h('td', {}, s.gaName), h('td', {}, s.kana || s.name), h('td', {}, s.nickname || ''), h('td', {}, statusChip(s.status)))) : h('tr', {}, h('td', { colSpan: 8, class: 'empty' }, 'いません')))))
+              : studentTable(sl.students, extra),
+          );
+        });
+        if (d.unassigned.length) cards.push(h('section', { class: 'sheet card' }, h('h3', {}, `第${round}回　個別補講（枠がまだ決まっていない人）`), studentTable(d.unassigned)));
+        body.replaceChildren(...cards);
+      } catch (e) {
+        body.replaceChildren(h('p', { class: 'error' }, e.message));
+      }
+    }
+    load();
+    return { refresh: load };
+  }
+
+  window.koshuViews = { rosterView, statsView, searchView, indivView, slotRoundPicker, statusChip, placeText, pct, fix1 };
 })();

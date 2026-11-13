@@ -1,7 +1,7 @@
 // GA 画面：記録入力・補講・検索・名簿・集計
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, searchView, slotRoundPicker, statusChip, placeText } = koshuViews;
+  const { rosterView, statsView, searchView, indivView, slotRoundPicker, statusChip, placeText } = koshuViews;
 
   const me = await requireLogin();
   $('#whoName').textContent = `${me.name} さん`;
@@ -28,7 +28,8 @@
   async function openTab(id) {
     if (id !== 'entryTab') await flushAll();
     for (const b of $$('#tabs button')) b.classList.toggle('on', b.dataset.tab === id);
-    for (const s of ['entryTab', 'searchTab', 'rosterTab', 'statsTab']) $('#' + s).hidden = s !== id;
+    for (const s of ['entryTab', 'searchTab', 'rosterTab', 'indivTab', 'statsTab']) $('#' + s).hidden = s !== id;
+    if (id === 'indivTab') views.indiv ? views.indiv.refresh() : (views.indiv = indivView($('#indivView'), boot));
     if (id === 'searchTab') (views.search ||= searchView($('#searchTab'), boot)).focus();
     if (id === 'rosterTab') views.roster ? views.roster.refresh() : (views.roster = rosterView($('#rosterView'), boot));
     if (id === 'statsTab') views.stats ? views.stats.refresh() : (views.stats = statsView($('#statsView'), boot));
@@ -355,6 +356,27 @@
   });
   groupSel.addEventListener('change', () => ($('#mkOther').checked = true));
   $('#mkCancel').addEventListener('click', () => dlg.close());
+  const indivNo = $('#mkIndivNo');
+  const indivWhen = $('#mkIndivWhen');
+  const paintWhen = () => ($('#mkWhenLabel').hidden = indivNo.value !== '8');
+  indivNo.addEventListener('change', () => {
+    paintWhen();
+    $('#mkIndivRadio').checked = true;
+  });
+  indivWhen.addEventListener('input', () => ($('#mkIndivRadio').checked = true));
+  async function fillIndiv(row) {
+    const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+    indivNo.replaceChildren(h('option', { value: '' }, '（枠はあとで決める）'));
+    try {
+      const d = await api.get(`/api/indiv?round=${row.round}`);
+      indivNo.append(...d.slots.map(sl => h('option', { value: sl.no, disabled: sl.closed }, `${CIRCLED[sl.no - 1]} ${sl.label}${sl.closed ? '（実施なし）' : ''}`)));
+    } catch (e) {
+      $('#mkError').textContent = e.message;
+    }
+    indivNo.value = row.makeup && row.makeup.indivNo ? String(row.makeup.indivNo) : '';
+    indivWhen.value = (row.makeup && row.makeup.indivWhen) || '';
+    paintWhen();
+  }
 
   function openMakeup(row) {
     dlgRow = row;
@@ -367,6 +389,7 @@
     slotSel.value = String(host ? host.slotId : current.slotId);
     fillGroups();
     if (host) groupSel.value = String(host.id);
+    fillIndiv(row);
     dlg.showModal();
   }
 
@@ -378,6 +401,13 @@
     if (place === '他班') {
       if (!groupSel.value) return void ($('#mkError').textContent = '補講先の班を選んでください');
       extra.hostGroupId = Number(groupSel.value);
+    }
+    if (place === '個別' && indivNo.value) {
+      extra.indivNo = Number(indivNo.value);
+      if (extra.indivNo === 8) {
+        if (!indivWhen.value.trim()) return void ($('#mkError').textContent = '⑧（指定時間外）は日時を入れてください');
+        extra.indivWhen = indivWhen.value.trim();
+      }
     }
     $('#mkOk').disabled = true;
     try {

@@ -1,7 +1,7 @@
 // 管理者画面
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, statusChip } = koshuViews;
+  const { rosterView, statsView, indivView, statusChip } = koshuViews;
 
   const me = await requireLogin('admin');
   $('#whoName').textContent = `${me.name} さん（管理者）`;
@@ -145,6 +145,42 @@
   tabs.roster = async () => (rosterV ? rosterV.refresh() : (rosterV = rosterView($('#rosterView'), boot)));
   tabs.stats = async () => (statsV ? statsV.refresh() : (statsV = statsView($('#statsView'), boot)));
 
+  // ---------- 個別補講 ----------
+  let indivV;
+  const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦'];
+  tabs.indiv = async () =>
+    indivV
+      ? indivV.refresh()
+      : (indivV = indivView($('#indivView'), boot, {
+          onEdit: (sl, round, reload) =>
+            formDialog({
+              title: `第${round}回 ${CIRCLED[sl.no - 1]} の変更`,
+              note: `基本は「${sl.defaultLabel}」です。この回だけ時間が違うときに書き換えてください。空にすると基本に戻ります。`,
+              fields: [
+                { name: 'label', label: '曜日と時間', value: sl.label === sl.defaultLabel ? '' : sl.label, maxLength: 30 },
+                { name: 'host', label: '補講担当者', value: sl.host || '', maxLength: 30 },
+                { name: 'room', label: '場所', value: sl.room || '', maxLength: 30 },
+                { name: 'closed', label: '実施', type: 'select', value: sl.closed ? '1' : '', options: [{ value: '', label: '実施する' }, { value: '1', label: '実施なし（祝日など）' }] },
+              ],
+              onSubmit: async v => {
+                await api.post('/api/admin/indiv-slots', { termId: term.id, round, no: sl.no, label: v.label, host: v.host, room: v.room, closed: v.closed === '1' });
+                await reload();
+              },
+            }),
+          onEditBase: async () => {
+            const d = await api.get(`/api/indiv?termId=${term.id}&round=${term.rounds.find(r => r !== 0)}`);
+            formDialog({
+              title: '①〜⑦の基本の曜日と時間',
+              note: '毎回この時間で表示されます。ある回だけ違うときは、その回の枠の「変更」で書き換えてください。',
+              fields: d.slots.slice(0, 7).map(sl => ({ name: `l${sl.no}`, label: CIRCLED[sl.no - 1], value: sl.defaultLabel, required: true, maxLength: 30 })),
+              onSubmit: async v => {
+                await api.post('/api/admin/indiv-labels', { termId: term.id, labels: [1, 2, 3, 4, 5, 6, 7].map(n => v[`l${n}`]) });
+                await indivV.refresh();
+              },
+            });
+          },
+        }));
+
   // ---------- 補講 ----------
   const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ'];
   tabs.makeups = async () => {
@@ -212,7 +248,7 @@
             td(roundLabel(m.round)),
             td(m.name, h('div', { class: 'sub' }, m.nickname || '')),
             td(m.homeLabel),
-            td(place),
+            td(place, m.indivLabel ? h('div', { class: 'sub' }, m.indivLabel) : null),
             td(statusChip(m.status)),
             td(att),
             td(typing || '—'),

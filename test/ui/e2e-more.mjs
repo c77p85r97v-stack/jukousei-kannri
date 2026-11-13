@@ -186,6 +186,30 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await shot(page, 'ga-stats');
   });
 
+  await check('個別補講：②を選ぶ・⑧は日時つき → 個別補講タブに枠ごとに出る（ナマエはカタカナ）', async page => {
+    await loginGaUi(page, 'A');
+    await pick(page, '月', 3);
+    await row(page, '青木 一').getByRole('button', { name: '補講', exact: true }).click();
+    await page.locator('#mkIndivNo').selectOption({ label: '② 木曜 13:00' });
+    assert.equal(await page.locator('#mkIndivRadio').isChecked(), true);
+    await page.getByRole('button', { name: '決定' }).click();
+    await row(page, '青木 一').getByText('個別 ②木曜 13:00').waitFor();
+    await row(page, '井上 二').getByRole('button', { name: '補講', exact: true }).click();
+    await page.locator('#mkIndivNo').selectOption('8');
+    await page.getByRole('button', { name: '決定' }).click();
+    await page.locator('#mkError').getByText('日時を入れてください').waitFor();
+    await page.locator('#mkIndivWhen').fill('5/8 15:00〜');
+    await page.getByRole('button', { name: '決定' }).click();
+    await row(page, '井上 二').getByText('個別 ⑧5/8 15:00〜').waitFor();
+    await page.locator('#tabs').getByRole('button', { name: '個別補講', exact: true }).click();
+    await page.locator('#ivRoundSeg').getByRole('button', { name: '第3回' }).click();
+    const two = page.locator('#ivBody section[data-no="2"]');
+    await two.getByText('アオキ ハジメ').waitFor();
+    const eight = page.locator('#ivBody section[data-no="8"]');
+    assert.match(await eight.innerText(), /5\/8 15:00〜[\s\S]*A[\s\S]*イノウエ ジ/);
+    await shot(page, 'ga-indiv');
+  });
+
   const admin = await import('./e2e-admin.mjs').catch(e => (e.code === 'ERR_MODULE_NOT_FOUND' ? null : Promise.reject(e)));
   if (admin) await admin.run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, assert, pick, row });
 

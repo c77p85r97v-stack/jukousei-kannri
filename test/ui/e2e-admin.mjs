@@ -190,4 +190,27 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     assert.equal(await count('records'), recordsBefore);
     assert.equal(await count('withdrawals'), 1);
   });
+
+  await check('個別補講タブ：ある回の①を「実施なし」に、②の時間を変える → GA の補講の枠で選べない', async page => {
+    await loginAdminUi(page);
+    await tab(page, '個別補講');
+    await page.locator('#ivRoundSeg').getByRole('button', { name: '第5回' }).click();
+    await page.locator('#ivBody section[data-no="1"]').getByRole('button', { name: '変更' }).click();
+    await page.locator('#fd_closed').selectOption('1');
+    await page.getByRole('button', { name: '保存' }).click();
+    await page.locator('#ivBody section[data-no="1"]').getByText('実施なし').waitFor();
+    await page.locator('#ivBody section[data-no="2"]').getByRole('button', { name: '変更' }).click();
+    await page.locator('#fd_label').fill('木曜 15:00');
+    await page.locator('#fd_host').fill('たくゆき');
+    await page.getByRole('button', { name: '保存' }).click();
+    await page.locator('#ivBody section[data-no="2"]').getByText('第5回　② 木曜 15:00').waitFor();
+    await page.locator('#ivBody section[data-no="2"]').getByText('担当：たくゆき').waitFor();
+    await shot(page, 'admin-indiv');
+    await page.goto(BASE + '/ga.html');
+    await pick(page, '月', 5);
+    await row(page, '上田 三').getByRole('button', { name: '補講', exact: true }).click();
+    await page.locator('#mkIndivNo option', { hasText: '①' }).waitFor({ state: 'attached' });
+    assert.equal(await page.locator('#mkIndivNo option', { hasText: '①' }).evaluate(o => o.disabled), true);
+    assert.ok((await page.locator('#mkIndivNo').innerText()).includes('② 木曜 15:00'));
+  });
 }

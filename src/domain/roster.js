@@ -3,6 +3,7 @@
 //  ・在籍：取り消していない解約がない、または解約の from_round > 回
 //  ・補講で来る人：その回の補講先がこの班（他班・できなかったでない）で、在籍している人
 import { makeupStatus } from './makeup.js';
+import { indivSlots, indivLabel } from './indiv.js';
 
 /** 受講生 alias のその回の班（SQL 式）。roundSql は '$2' のようなプレースホルダ。 */
 export function currentGroupSql(alias, roundSql) {
@@ -36,6 +37,8 @@ function toMember(r) {
             hostLabel: r.host_slot ? `${r.host_slot} ${r.host_ga}` : null,
             failed: r.failed,
             version: r.mversion,
+            indivNo: r.indiv_no,
+            indivWhen: r.indiv_when,
           },
   };
 }
@@ -57,7 +60,7 @@ export async function rosterRows(db, { termId, round, groupIds }) {
      )
      select l.*, hs.code as home_slot, hga.name as home_ga,
             r.attendance, r.typing, r.quiz, r.note, r.version as rversion,
-            m.place, m.host_group_id, m.failed, m.version as mversion, xs.code as host_slot, xga.name as host_ga
+            m.place, m.host_group_id, m.failed, m.version as mversion, m.indiv_no, m.indiv_when, xs.code as host_slot, xga.name as host_ga
        from lst l
        join groups hg on hg.id = l.cg join slots hs on hs.id = hg.slot_id join staff hga on hga.id = hg.ga_id
        left join records r on r.student_id = l.id and r.round = $2
@@ -81,9 +84,13 @@ export async function rosterFor(db, { termId, slotId, round }) {
   const byId = new Map(groups.map(g => [g.groupId, { ...g, members: [], guests: [] }]));
   if (!groups.length) return [];
   const rows = await rosterRows(db, { termId, round, groupIds: groups.map(g => g.groupId) });
+  const slots = rows.some(r => r.indiv_no != null) ? await indivSlots(db, termId, round) : [];
   for (const r of rows) {
     const m = toMember(r);
-    if (m.makeup) m.makeup.status = makeupStatus(m.makeup, m.record);
+    if (m.makeup) {
+      m.makeup.status = makeupStatus(m.makeup, m.record);
+      m.makeup.indivLabel = indivLabel(slots, m.makeup.indivNo, m.makeup.indivWhen);
+    }
     byId.get(r.shown_group)[r.kind === 'guest' ? 'guests' : 'members'].push(m);
   }
   return [...byId.values()];

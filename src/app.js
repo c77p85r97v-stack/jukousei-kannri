@@ -8,12 +8,14 @@ import * as makeups from './routes/makeups.js';
 import * as changes from './routes/changes.js';
 import * as reports from './routes/reports.js';
 import * as maintenance from './routes/maintenance.js';
+import * as indiv from './routes/indiv.js';
 
 // [メソッド, パス(正規表現), 処理(env, req, match)]
 export const ROUTES = [
   ['GET', /^\/api\/health$/, async () => json({ ok: true })],
   ...auth.routes,
   ...master.routes,
+  ...indiv.routes,
   ...importer.routes,
   ...records.routes,
   ...makeups.routes,

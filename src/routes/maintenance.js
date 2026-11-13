@@ -6,7 +6,7 @@ import { audit } from '../lib/audit.js';
 import { safeEqual } from '../lib/crypto.js';
 
 // 外部キーの順（親 → 子）
-const TABLES = ['terms', 'slots', 'staff', 'groups', 'students', 'records', 'makeups', 'withdrawals', 'transfers', 'audit_log'];
+const TABLES = ['terms', 'slots', 'staff', 'groups', 'students', 'records', 'makeups', 'withdrawals', 'transfers', 'indiv_slots', 'audit_log'];
 const PREFIX = 'backups/';
 const KINDS = { auto: '自動', manual: '手動', 'pre-restore': '復元前', 'pre-reset': '初期化前' };
 const KEEP_DAYS = 30;

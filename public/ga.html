@@ -22,6 +22,7 @@
     <button type="button" data-tab="entryTab" class="on">記録入力</button>
     <button type="button" data-tab="searchTab">受講生を探す</button>
     <button type="button" data-tab="rosterTab">名簿（印刷）</button>
+    <button type="button" data-tab="indivTab">個別補講</button>
     <button type="button" data-tab="statsTab">集計</button>
   </nav>
 
@@ -33,6 +34,7 @@
   </section>
   <section id="searchTab" hidden></section>
   <section id="rosterTab" hidden><div id="rosterView"></div></section>
+  <section id="indivTab" hidden><div id="indivView"></div></section>
   <section id="statsTab" hidden><div id="statsView"></div></section>
 </main>
 
@@ -45,7 +47,11 @@
       <label class="inline">コマ <select id="mkSlot"></select></label>
       <label class="inline">班（GA） <select id="mkGroup"></select></label>
     </div>
-    <label class="inline"><input type="radio" name="place" value="個別"> 個別補講で受ける</label><br>
+    <label class="inline"><input type="radio" name="place" value="個別" id="mkIndivRadio"> 個別補講で受ける</label>
+    <div class="bar" style="margin:6px 0 10px 24px" id="mkIndiv">
+      <label class="inline">枠 <select id="mkIndivNo"></select></label>
+      <label class="inline" id="mkWhenLabel" hidden>日時 <input id="mkIndivWhen" maxlength="50" placeholder="例：5/8 15:00〜" autocomplete="off"></label>
+    </div>
     <label class="inline" style="margin-top:10px"><input type="radio" name="place" value="未定"> まだ決まっていない</label>
     <p class="error" id="mkError" role="alert"></p>
     <div class="actions">
