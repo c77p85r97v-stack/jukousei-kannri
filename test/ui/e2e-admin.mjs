@@ -158,15 +158,37 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await shot(page, 'admin-audit');
   });
 
-  await check('名簿タブ：印刷用の PDF が作れる', async page => {
+  await check('名簿（印刷）：前の「第N回」シートの形で、1コマが A4 横 1枚に収まる／すべてはコマごとに1枚', async page => {
     await loginAdminUi(page);
-    await tab(page, '名簿');
+    await tab(page, '名簿（印刷）');
     await page.locator('#rvSlotSeg').getByRole('button', { name: '月', exact: true }).click();
-    await page.locator('#rosterView .sheet').first().waitFor();
+    const sh = page.locator('#rosterView .rsheet');
+    await sh.first().waitFor();
+    assert.equal(await sh.count(), 1);
+    assert.match(await sh.innerText(), /補講で来る人（振替）/);
+    assert.ok((await sh.locator('td.ga').allInnerTexts()).includes('A'));
     await shot(page, 'admin-roster');
-    const pdf = await page.pdf({ format: 'A4' });
-    writeFileSync('/tmp/e2e/roster.pdf', pdf);
-    assert.ok(pdf.length > 3000);
+    const pages = pdf => {
+      const t = pdf.toString('latin1');
+      const n = (t.match(/\/Type\s*\/Page[^s]/g) || []).length;
+      const box = t.match(/\/MediaBox\s*\[\s*0 0 ([\d.]+) ([\d.]+)/);
+      return { n, landscape: box && Number(box[1]) > Number(box[2]) };
+    };
+    const one = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    writeFileSync('/tmp/e2e/roster.pdf', one);
+    assert.deepEqual(pages(one), { n: 1, landscape: true });
+    await page.locator('#rvSlotSeg').getByRole('button', { name: 'すべて', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('#rosterView .rsheet').length === 9);
+    const all = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    writeFileSync('/tmp/e2e/roster-all.pdf', all);
+    assert.deepEqual(pages(all), { n: 9, landscape: true });
+  });
+
+  await check('管理者の記録閲覧タブ', async page => {
+    await loginAdminUi(page);
+    await tab(page, '記録閲覧');
+    await page.locator('#rcSlotSeg').getByRole('button', { name: '月', exact: true }).click();
+    await page.locator('#rcBody tr', { hasText: '青木 一' }).waitFor();
   });
 
   await check('初期化：入力するまで押せない → 実行 → 記録が消え受講生は残る → 初期化前に戻せる', async page => {

@@ -174,13 +174,19 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await shot(page, 'ga-history');
   });
 
-  await check('GA の名簿タブと集計タブ', async page => {
+  await check('GA：名簿（印刷）タブはなく、記録閲覧タブで今までのタイピングが表で見られる／集計タブ', async page => {
     await loginGaUi(page, 'A');
-    await page.getByRole('button', { name: '名簿（印刷）' }).click();
-    await page.locator('#rvSlotSeg').getByRole('button', { name: '月', exact: true }).click();
-    await page.locator('#rosterView .sheet').first().waitFor();
-    await page.locator('#rosterView').getByRole('button', { name: '印刷する' }).waitFor();
-    await shot(page, 'ga-roster');
+    assert.equal(await page.locator('#tabs').getByRole('button', { name: '名簿（印刷）' }).count(), 0);
+    await page.locator('#tabs').getByRole('button', { name: '記録閲覧', exact: true }).click();
+    await page.locator('#rcSlotSeg').getByRole('button', { name: '月', exact: true }).click();
+    const tr = page.locator('#rcBody tr', { hasText: '青木 一' });
+    await tr.waitFor();
+    assert.match(await tr.innerText(), /145\.2/);
+    const heads = await page.locator('#rcBody thead th').allInnerTexts();
+    assert.deepEqual(heads.slice(0, 9), ['GA', '名前', 'ヨミ', 'ニックネーム', '解約・移動', '第0回', '第1回', '備考', 'クイズ']);
+    assert.ok(heads.includes('タイピング伸び'));
+    assert.equal(await page.locator('#rcBody input, #rcBody select').count(), 0);
+    await shot(page, 'ga-records');
     await page.getByRole('button', { name: '集計', exact: true }).click();
     await page.locator('#statsView').getByText('継続率').first().waitFor();
     await shot(page, 'ga-stats');

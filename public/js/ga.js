@@ -1,7 +1,7 @@
 // GA 画面：記録入力・補講・検索・名簿・集計
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, searchView, indivView, lineDialog, slotRoundPicker, statusChip, placeText } = koshuViews;
+  const { statsView, searchView, indivView, recordsView, lineDialog, slotRoundPicker, statusChip, placeText } = koshuViews;
 
   const me = await requireLogin();
   $('#whoName').textContent = `${me.name} さん`;
@@ -28,10 +28,10 @@
   async function openTab(id) {
     if (id !== 'entryTab') await flushAll();
     for (const b of $$('#tabs button')) b.classList.toggle('on', b.dataset.tab === id);
-    for (const s of ['entryTab', 'searchTab', 'rosterTab', 'indivTab', 'statsTab']) $('#' + s).hidden = s !== id;
+    for (const s of ['entryTab', 'searchTab', 'recordsTab', 'indivTab', 'statsTab']) $('#' + s).hidden = s !== id;
     if (id === 'indivTab') views.indiv ? views.indiv.refresh() : (views.indiv = indivView($('#indivView'), boot));
     if (id === 'searchTab') (views.search ||= searchView($('#searchTab'), boot)).focus();
-    if (id === 'rosterTab') views.roster ? views.roster.refresh() : (views.roster = rosterView($('#rosterView'), boot));
+    if (id === 'recordsTab') views.records ? views.records.refresh() : (views.records = recordsView($('#recordsView'), boot));
     if (id === 'statsTab') views.stats ? views.stats.refresh() : (views.stats = statsView($('#statsView'), boot));
     if (id === 'entryTab') picker.refresh();
   }

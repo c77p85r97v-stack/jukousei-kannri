@@ -1,7 +1,7 @@
 // 管理者画面
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, indivView, lineDialog, statusChip } = koshuViews;
+  const { rosterView, statsView, indivView, recordsView, lineDialog, statusChip } = koshuViews;
 
   const me = await requireLogin('admin');
   $('#whoName').textContent = `${me.name} さん（管理者）`;
@@ -143,6 +143,8 @@
   // ---------- 名簿・集計 ----------
   let rosterV, statsV;
   tabs.roster = async () => (rosterV ? rosterV.refresh() : (rosterV = rosterView($('#rosterView'), boot)));
+  let recordsV;
+  tabs.records = async () => (recordsV ? recordsV.refresh() : (recordsV = recordsView($('#recordsView'), boot)));
   tabs.stats = async () => (statsV ? statsV.refresh() : (statsV = statsView($('#statsView'), boot)));
 
   // ---------- 個別補講 ----------

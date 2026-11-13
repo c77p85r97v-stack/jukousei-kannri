@@ -84,43 +84,141 @@
         const sheets = [];
         for (const s of targets) {
           const data = await api.get(`/api/roster?slotId=${s.id}&round=${round}`);
-          const groups = [...data.groups].sort((a, b) => a.groupId - b.groupId);
-          for (const g of groups) sheets.push(sheet(s.code, round, g));
+          sheets.push(sheet(s.code, round, data));
         }
-        body.replaceChildren(...(sheets.length ? sheets : [h('p', { class: 'empty' }, 'このコマには班がありません')]));
+        body.replaceChildren(...sheets);
       } catch (e) {
         body.replaceChildren(h('p', { class: 'error' }, e.message));
       }
     }
-    function sheet(code, round, g) {
-      const line = (m, guest) =>
+    // 前のスプレッドシートの「第N回」シートの形：A4 横 1枚にコマ1つ。
+    // 左：補講で来る人（振替）、右：班ごとの名簿（GA 名を縦に結合、1班 12行以上）を2列に並べる
+    const MIN_ROWS = 12;
+    const PAGE_MM = 178; // A4 横の高さ 210mm − 余白 − 見出し
+    function sheet(code, round, data) {
+      const groups = [...data.groups].sort((a, b) => a.groupId - b.groupId);
+      const rowsOf = g => Math.max(MIN_ROWS, g.members.length);
+      // 班を上から順に左右2列へ（左が半分を超えたら右へ）
+      const total = groups.reduce((n, g) => n + rowsOf(g), 0);
+      const cols = [[], []];
+      let left = 0;
+      for (const g of groups) {
+        if (left < total / 2 && (left === 0 || left + rowsOf(g) / 2 <= total / 2)) {
+          cols[0].push(g);
+          left += rowsOf(g);
+        } else cols[1].push(g);
+      }
+      const guests = groups.flatMap(g => g.guests.map(m => ({ ...m, hostGa: g.gaName })));
+      const colRows = cols.map(c => c.reduce((n, g) => n + rowsOf(g), 0));
+      const maxRows = Math.max(...colRows, guests.length + 4, 1) + 1;
+      const rh = Math.min(6, PAGE_MM / maxRows);
+      const note = m => (m.makeup && m.makeup.status !== '済' ? `補講：${placeText(m.makeup)}${m.makeup.failed ? '（できず）' : ''}` : '');
+      const groupTable = list =>
         h(
-          'tr',
-          { class: guest ? 'guest' : null },
-          h('td', {}, h('span', { class: 'checkbox' })),
-          h('td', {}, m.nickname || ''),
-          h('td', {}, m.name),
-          h('td', { class: 'sub' }, m.kana || ''),
-          h('td', {}, guest ? `補講で来る人（${m.homeLabel}）` : m.makeup && m.makeup.status !== '済' ? `補講：${placeText(m.makeup)}${m.makeup.failed ? '（できず）' : ''}` : ''),
+          'table',
+          { class: 'rgrid' },
+          h('colgroup', {}, ['ga', 'nm', 'kn', 'nk', 'w', 'rm'].map(c => h('col', { class: `c-${c}` }))),
+          h('thead', {}, h('tr', {}, h('th', { class: 'ga' }, 'GA'), h('th', {}, '名前'), h('th', {}, 'ヨミ'), h('th', {}, 'ニックネーム'), h('th', { class: 'w' }, '記入'), h('th', { class: 'rm' }, '備考'))),
+          list.map(g => {
+            const n = rowsOf(g);
+            return h(
+              'tbody',
+              { class: 'grp' },
+              Array.from({ length: n }, (_, i) => {
+                const m = g.members[i];
+                return h('tr', {}, i === 0 ? h('td', { class: 'ga', rowSpan: n }, g.gaName) : null, h('td', {}, m ? m.name : ''), h('td', {}, m ? m.kana || '' : ''), h('td', {}, m ? m.nickname || '' : ''), h('td', { class: 'w' }), h('td', { class: 'rm' }, m ? note(m) : ''));
+              }),
+            );
+          }),
         );
+      const guestRows = Math.max(guests.length + 3, 6);
+      const guestTable = h(
+        'table',
+        { class: 'rgrid' },
+        h('colgroup', {}, ['h', 'ga', 'kn', 'nk', 'from', 'w'].map(c => h('col', { class: `g-${c}` }))),
+        h('thead', {}, h('tr', {}, h('th', {}, '振替先GA'), h('th', {}, '担当GA'), h('th', {}, 'ナマエ'), h('th', {}, 'ニックネーム'), h('th', {}, '元コマ'), h('th', { class: 'w' }, '記入'))),
+        h('tbody', {}, Array.from({ length: guestRows }, (_, i) => {
+          const m = guests[i];
+          return h('tr', {}, h('td', {}, m ? m.hostGa : ''), h('td', {}, m ? (m.homeLabel || '').split(' ').slice(1).join(' ') : ''), h('td', {}, m ? m.kana || m.name : ''), h('td', {}, m ? m.nickname || '' : ''), h('td', {}, m ? (m.homeLabel || '').split(' ')[0] : ''), h('td', { class: 'w' }));
+        })),
+      );
       return h(
         'section',
-        { class: 'sheet card' },
-        h('h3', {}, `第${round}回　${code}　${g.gaName} の班（${g.members.length}人${g.guests.length ? `＋補講 ${g.guests.length}人` : ''}）`),
-        h(
-          'div',
-          { class: 'scroll' },
-          h(
-            'table',
-            { class: 'grid' },
-            h('thead', {}, h('tr', {}, h('th', {}, '出席'), h('th', {}, 'ニックネーム'), h('th', {}, '名前'), h('th', {}, 'ヨミ'), h('th', {}, '備考'))),
-            h('tbody', {}, g.members.map(m => line(m, false)), g.guests.map(m => line(m, true)), !g.members.length && !g.guests.length ? h('tr', {}, h('td', { colSpan: 5, class: 'empty' }, '受講生がいません')) : null),
-          ),
-        ),
+        { class: 'sheet rsheet', style: `--rh:${rh.toFixed(2)}mm` },
+        h('div', { class: 'rhead' }, h('b', {}, `第${round}回　${code}`), h('span', {}, `${groups.reduce((n, g) => n + g.members.length, 0)}人${guests.length ? `＋補講で来る人 ${guests.length}人` : ''}`)),
+        h('div', { class: 'rbody' }, h('div', { class: 'rleft' }, h('div', { class: 'rcap' }, '補講で来る人（振替）'), guestTable), groups.length ? cols.map(c => h('div', { class: 'rcol' }, c.length ? groupTable(c) : null)) : h('p', { class: 'empty' }, 'このコマには班がありません')),
       );
     }
     picker.refresh();
     return { refresh: picker.refresh };
+  }
+
+  // ---------- 記録閲覧（前のスプレッドシートの曜日シートの形・見るだけ） ----------
+  function recordsView(root, boot) {
+    let slotId = memo.get('slot') && boot.slots.some(s => s.id === memo.get('slot')) ? memo.get('slot') : boot.slots[0]?.id;
+    const seg = h('div', { class: 'seg', id: 'rcSlotSeg', role: 'group', 'aria-label': 'コマ' });
+    const body = h('div', { id: 'rcBody' });
+    const paint = () => {
+      for (const b of seg.children) b.classList.toggle('on', Number(b.dataset.slot) === slotId);
+    };
+    for (const s of boot.slots) seg.append(h('button', { type: 'button', dataset: { slot: s.id }, onclick: () => { slotId = s.id; paint(); load(); } }, s.code));
+    paint();
+    root.replaceChildren(
+      h('div', { class: 'bar' }, seg, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: () => load() }, '最新にする')),
+      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数、〇は出席（記録なし）、△は補講予定、×は補講できず。'),
+      body,
+    );
+    async function load() {
+      memo.set('slot', slotId);
+      body.replaceChildren(h('p', { class: 'empty' }, '読み込み中…'));
+      try {
+        const d = await api.get(`/api/records/sheet?slotId=${slotId}`);
+        const cols = [];
+        for (const r of d.rounds) {
+          cols.push({ head: `第${r}回`, cls: 'rv', get: x => x.cells[r]?.value || '', out: x => x.cells[r]?.out });
+          if (r !== d.freeRound) cols.push({ head: '備考', cls: 'rk', get: x => x.cells[r]?.remark || '', out: x => x.cells[r]?.out });
+          if (d.quizRounds.includes(r)) cols.push({ head: 'クイズ', cls: 'rq', get: x => (x.quiz[r] ?? '') + '' });
+        }
+        cols.push({ head: 'タイピング伸び', cls: 'rg', get: x => (x.typingGain ?? '') + '' }, { head: 'クイズ伸び', cls: 'rg', get: x => (x.quizGain ?? '') + '' });
+        const head = h('tr', {}, h('th', { class: 'sx s1' }, 'GA'), h('th', { class: 'sx s2' }, '名前'), h('th', {}, 'ヨミ'), h('th', {}, 'ニックネーム'), h('th', {}, '解約・移動'), cols.map(c => h('th', { class: c.cls }, c.head)));
+        const groups = d.groups.filter(g => g.students.length);
+        body.replaceChildren(
+          groups.length
+            ? h(
+                'div',
+                { class: 'scroll recsheet' },
+                h(
+                  'table',
+                  { class: 'grid' },
+                  h('thead', {}, head),
+                  groups.map(g =>
+                    h(
+                      'tbody',
+                      { class: 'grp' },
+                      g.students.map((x, i) =>
+                        h(
+                          'tr',
+                          { class: x.withdrawnFrom != null ? 'gone' : null },
+                          i === 0 ? h('td', { class: 'sx s1 ga', rowSpan: g.students.length }, g.gaName, h('div', { class: 'sub' }, `${g.students.filter(y => y.withdrawnFrom == null).length}人`)) : null,
+                          h('td', { class: 'sx s2' }, x.name),
+                          h('td', { class: 'sub' }, x.kana || ''),
+                          h('td', {}, x.nickname || ''),
+                          h('td', { class: 'sub' }, x.status),
+                          cols.map(c => h('td', { class: `${c.cls}${c.out && c.out(x) ? ' out' : ''}` }, c.get(x))),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : h('p', { class: 'empty' }, 'このコマには受講生がいません'),
+        );
+      } catch (e) {
+        body.replaceChildren(h('p', { class: 'error' }, e.message));
+      }
+    }
+    load();
+    return { refresh: load };
   }
 
   // ---------- 集計 ----------
@@ -337,5 +435,5 @@
     }
   }
 
-  window.koshuViews = { rosterView, statsView, searchView, indivView, lineDialog, slotRoundPicker, statusChip, placeText, pct, fix1 };
+  window.koshuViews = { rosterView, statsView, searchView, indivView, recordsView, lineDialog, slotRoundPicker, statusChip, placeText, pct, fix1 };
 })();

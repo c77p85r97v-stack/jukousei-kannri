@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex">
 <title>管理画面｜PC講習会 受講生管理</title>
 <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/admin-print.css">
 </head>
 <body>
 <header class="top">
@@ -29,7 +30,8 @@
     </form>
   </section>
   <nav class="tabs no-print" id="tabs" hidden>
-    <button type="button" data-tab="roster" class="on">名簿</button>
+    <button type="button" data-tab="roster" class="on">名簿（印刷）</button>
+    <button type="button" data-tab="records">記録閲覧</button>
     <button type="button" data-tab="makeups">補講</button>
     <button type="button" data-tab="indiv">個別補講</button>
     <button type="button" data-tab="changes">解約・移動</button>
@@ -40,6 +42,7 @@
     <button type="button" data-tab="data">データ・バックアップ</button>
   </nav>
   <section id="tab-roster" hidden><div id="rosterView"></div></section>
+  <section id="tab-records" hidden><div id="recordsView"></div></section>
   <section id="tab-makeups" hidden></section>
   <section id="tab-indiv" hidden><div id="indivView"></div></section>
   <section id="tab-changes" hidden></section>

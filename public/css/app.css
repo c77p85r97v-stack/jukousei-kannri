@@ -104,9 +104,41 @@ dialog .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .names{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .names button{padding:12px 6px}
 
-/* 印刷用の名簿 */
+/* 記録閲覧 */
+.recsheet{max-height:75vh}
+.recsheet table{font-size:12px}
+.recsheet th,.recsheet td{white-space:nowrap;padding:4px 6px}
+.recsheet thead th{position:sticky;top:0;z-index:2}
+.recsheet .sx{position:sticky;background:#fff;z-index:1}
+.recsheet thead .sx{z-index:3;background:var(--lav)}
+.recsheet .s1{left:0;min-width:84px}
+.recsheet .s2{left:84px;min-width:96px;box-shadow:1px 0 0 var(--line)}
+.recsheet td.ga{vertical-align:top;font-weight:700}
+.recsheet tbody.grp{border-top:2px solid var(--line)}
+.recsheet td.rv,.recsheet td.rq,.recsheet td.rg{text-align:right}
+.recsheet td.rk{color:var(--muted);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.recsheet th.rk{font-weight:400}
+.recsheet tr.gone td{color:#999}
+.recsheet td.out{background:#f1f1f1}
+
+/* 印刷用の名簿：前のスプレッドシートの「第N回」シートの形。A4 横 1枚にコマ1つ */
+.rsheet{width:277mm;max-width:100%;overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:4mm;margin-bottom:16px;color:#000}
+.rhead{display:flex;gap:12px;align-items:baseline;margin-bottom:2mm;font-size:13px}
+.rhead b{font-size:16px}
+.rbody{display:grid;grid-template-columns:minmax(0,26fr) minmax(0,37fr) minmax(0,37fr);gap:2.5mm;align-items:start}
+.rcap{font-weight:700;font-size:calc(var(--rh) * .6);margin-bottom:1mm}
+.rgrid{border-collapse:collapse;width:100%;table-layout:fixed;font-size:calc(var(--rh) * .55)}
+.rgrid th,.rgrid td{border:1px solid #555;height:var(--rh);padding:0 1mm;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:clip;font-weight:normal}
+.rgrid th{background:#eee;font-weight:700}
+.rgrid tbody.grp{border-top:2px solid #000}
+.rgrid td.ga{text-align:center;font-weight:700;white-space:normal}
+.rgrid col.c-ga{width:11%}.rgrid col.c-nm{width:18%}.rgrid col.c-kn{width:26%}.rgrid col.c-nk{width:16%}.rgrid col.c-w{width:11%}.rgrid col.c-rm{width:18%}
+.rgrid col.g-h{width:17%}.rgrid col.g-ga{width:15%}.rgrid col.g-kn{width:28%}.rgrid col.g-nk{width:17%}.rgrid col.g-from{width:11%}.rgrid col.g-w{width:12%}
+
+/* 印刷用の名簿（班ごとの旧形式・個別補講） */
 .print-only{display:none}
 @media print{
+  .rsheet{width:auto;border:0;border-radius:0;padding:0;margin:0;overflow:visible}
   body{background:#fff;font-size:11px}
   .top,.tabs,.bar,.no-print,.toast{display:none!important}
   .wrap{max-width:none;padding:0}

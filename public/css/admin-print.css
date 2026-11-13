@@ -1,0 +1,8 @@
+/* 管理画面の印刷は A4 横。余白はページではなく各シートの内側に取る
+   （@page の余白はブラウザによって幅の計算に入らず、右端が切れることがあるため） */
+@page{size:A4 landscape;margin:0}
+@media print{
+  .wrap>section:not([hidden]){padding:8mm}
+  .rsheet{box-sizing:border-box;width:297mm;height:209mm;padding:8mm!important;overflow:hidden}
+  #tab-roster{padding:0!important}
+}
