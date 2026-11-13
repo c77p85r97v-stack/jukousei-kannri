@@ -70,7 +70,7 @@ test('GA cannot read audit → 403', async () => {
   assert.equal((await call(env, 'GET', '/api/admin/audit', undefined, ga)).status, 403);
 });
 
-test('records.csv starts with BOM and has 5 + 4×9 columns', async () => {
+test('records.csv starts with BOM; typing only in typing rounds, quiz only in quiz rounds (第0回は出欠とメモだけ)', async () => {
   const { env, f, ga, s } = await setup();
   await call(env, 'POST', '/api/records', { studentId: s('青木').id, round: 1, typing: 150.5, note: 'a,b', version: 0 }, ga);
   const r = await call(env, 'GET', `/api/export/records.csv?termId=${f.term.id}`, undefined, ga);
@@ -79,8 +79,9 @@ test('records.csv starts with BOM and has 5 + 4×9 columns', async () => {
   assert.equal(r.text.charCodeAt(0), 0xfeff);
   const lines = r.text.slice(1).trim().split('\r\n');
   assert.equal(lines.length, 7);
-  assert.equal(lines[0].split(',').length, 5 + 4 * 9);
-  assert.ok(lines[0].startsWith('コマ,GA,名前,ヨミ,ニックネーム,第0回出欠,第0回タイピング,第0回クイズ,第0回メモ,第1回出欠'));
+  assert.equal(lines[0].split(',').length, 5 + 2 + 3 * 8 + 2);
+  assert.ok(lines[0].startsWith('コマ,GA,名前,ヨミ,ニックネーム,第0回出欠,第0回メモ,第1回出欠,第1回タイピング,第1回クイズ,第1回メモ,第2回出欠,第2回タイピング,第2回メモ,'));
+  assert.ok(lines[0].endsWith('第8回出欠,第8回タイピング,第8回クイズ,第8回メモ'));
   const aoki = lines.find(l => l.includes('青木 一'));
   assert.ok(aoki.includes('出席,150.5,,"a,b"'));
 });

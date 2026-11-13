@@ -193,7 +193,7 @@
         h(
           'div',
           { class: 'bar' },
-          h('label', { class: 'inline' }, '回 ', h('select', { id: 'mkRound', onchange: () => tabs.makeups() }, h('option', { value: '' }, 'すべて'), roundOptions())),
+          h('label', { class: 'inline' }, '回 ', h('select', { id: 'mkRound', onchange: () => tabs.makeups() }, h('option', { value: '' }, 'すべて'), term.rounds.filter(r => r !== 0).map(r => h('option', { value: r }, roundLabel(r))))),
           h('label', { class: 'inline' }, '状態 ', h('select', { id: 'mkStatus', onchange: () => tabs.makeups() }, h('option', { value: '' }, 'すべて'), ['未定', '予定', '済', 'できず'].map(s => h('option', { value: s }, s)))),
           h('span', { class: 'grow' }),
           btn('更新', () => tabs.makeups(), ''),

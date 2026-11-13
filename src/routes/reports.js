@@ -113,13 +113,16 @@ async function recordsCsv(env, req) {
   const recs = await env.db.query('select r.* from records r join students st on st.id = r.student_id where st.term_id = $1', [term.id]);
   const map = new Map(recs.map(r => [`${r.student_id}:${r.round}`, r]));
   const header = ['コマ', 'GA', '名前', 'ヨミ', 'ニックネーム'];
-  for (const r of term.rounds) header.push(`第${r}回出欠`, `第${r}回タイピング`, `第${r}回クイズ`, `第${r}回メモ`);
+  // 第0回（自由参加）は出欠とメモだけ。タイピング・クイズはその回があるときだけ列を作る
+  const cols = r => ['attendance', ...(term.typing_rounds.includes(r) ? ['typing'] : []), ...(term.quiz_rounds.includes(r) ? ['quiz'] : []), 'note'];
+  const LABEL = { attendance: '出欠', typing: 'タイピング', quiz: 'クイズ', note: 'メモ' };
+  for (const r of term.rounds) header.push(...cols(r).map(c => `第${r}回${LABEL[c]}`));
   const rows = [header];
   for (const s of students) {
     const row = [s.slotCode, s.gaName, s.name, s.kana, s.nickname];
     for (const r of term.rounds) {
       const x = map.get(`${s.id}:${r}`);
-      row.push(x?.attendance, x?.typing == null ? null : Number(x.typing), x?.quiz, x?.note);
+      row.push(...cols(r).map(c => (c === 'typing' ? (x?.typing == null ? null : Number(x.typing)) : x?.[c])));
     }
     rows.push(row);
   }

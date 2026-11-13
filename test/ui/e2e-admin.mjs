@@ -189,6 +189,12 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await tab(page, '記録閲覧');
     await page.locator('#rcSlotSeg').getByRole('button', { name: '月', exact: true }).click();
     await page.locator('#rcBody tr', { hasText: '青木 一' }).waitFor();
+    await tab(page, '補講');
+    await page.locator('#mkRound option').first().waitFor({ state: 'attached' });
+    const opts = await page.locator('#mkRound option').allInnerTexts();
+    assert.equal(opts[0], 'すべて');
+    assert.ok(!opts.includes('第0回'));
+    assert.ok(opts.includes('第1回') && opts.includes('第8回'));
   });
 
   await check('初期化：入力するまで押せない → 実行 → 記録が消え受講生は残る → 初期化前に戻せる', async page => {
