@@ -126,7 +126,7 @@ test('records.csv shows attendance in the words used on screen', async () => {
   await call(env, 'POST', '/api/records', { studentId: s('上田').id, round: 2, attendance: '欠席', version: 0 }, ga);
   const text = (await call(env, 'GET', `/api/export/records.csv?termId=${f.term.id}`, undefined, ga)).text;
   const line = name => text.split('\r\n').find(l => l.includes(name));
-  assert.match(line('青木 一'), /当日欠席・振替済み/);
+  assert.match(line('青木 一'), /当日欠席・振替先未定/);
   assert.match(line('井上 二'), /当日欠席・補講済み,140/);
   assert.match(line('上田 三'), /,当日欠席,/);
 });

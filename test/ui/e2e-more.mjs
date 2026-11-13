@@ -96,13 +96,14 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     assert.equal(await row(page, '江藤 四').locator('select.att option:checked').innerText(), '当日欠席・補講済み');
   });
 
-  await check('場所未定で登録 → できなかった → ×', async page => {
+  await check('振替先未定で登録（△ 当日欠席・振替先未定）→ できなかった → ×', async page => {
     await loginGaUi(page, 'B');
     await pick(page, '月', 3);
     await row(page, '小川 五').getByRole('button', { name: '補講', exact: true }).click();
     await page.getByLabel('まだ決まっていない').check();
     await page.getByRole('button', { name: '決定' }).click();
-    await row(page, '小川 五').getByText('未定').first().waitFor();
+    await row(page, '小川 五').locator('.chip', { hasText: '未定' }).waitFor();
+    assert.equal(await row(page, '小川 五').locator('select.att option:checked').innerText(), '△ 当日欠席・振替先未定');
     await row(page, '小川 五').getByRole('button', { name: 'できなかった' }).click();
     await row(page, '小川 五').locator('.chip', { hasText: '×' }).waitFor();
     await row(page, '小川 五').getByRole('button', { name: '取り消し' }).click();
@@ -236,6 +237,28 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await row(page, '井上 二').getByRole('button', { name: 'LINE文' }).click();
     await page.waitForFunction(() => document.querySelector('#lineText').value.includes('決まりました'));
     assert.match(await page.locator('#lineText').inputValue(), /月曜 A班のイノウエ ジさん（第3回欠席）の補講が、個別補講⑧5\/8 15:00〜に決まりました。/);
+  });
+
+  await check('同じ画面に2回出る受講生（元の班と補講で来る人）は、片方で入力するともう片方もそろう', async page => {
+    await loginGaUi(page, 'A');
+    await pick(page, '月', 4);
+    await row(page, '江藤 四').getByRole('button', { name: '補講', exact: true }).click();
+    await page.getByLabel('ほかの班で受ける').check();
+    await page.locator('#mkSlot').selectOption({ label: '月' });
+    await page.locator('#mkGroup').selectOption({ label: 'A' });
+    await page.getByRole('button', { name: '決定' }).click();
+    const home = page.locator('#entry tr[data-student]:not(.guest)', { hasText: '江藤 四' });
+    const guest = page.locator('#entry tr.guest', { hasText: '江藤 四' });
+    await home.locator('.chip', { hasText: '△' }).waitFor();
+    await page.locator('#rvRefresh, button:has-text("最新にする")').first().click();
+    await guest.waitFor();
+    assert.equal(await home.locator('select.att option:checked').innerText(), '△ 当日欠席・振替済み');
+    await guest.locator('input.typing').fill('130');
+    await guest.locator('input.typing').press('Enter');
+    await guest.and(page.locator('[data-state=saved]')).waitFor();
+    await home.getByText('済', { exact: true }).waitFor();
+    assert.equal(await home.locator('select.att option:checked').innerText(), '当日欠席・補講済み');
+    assert.equal(await home.locator('input.typing').inputValue(), '130');
   });
 
   const admin = await import('./e2e-admin.mjs').catch(e => (e.code === 'ERR_MODULE_NOT_FOUND' ? null : Promise.reject(e)));

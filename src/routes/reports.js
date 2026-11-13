@@ -111,7 +111,7 @@ async function recordsCsv(env, req) {
   await requireStaff(env, req);
   const term = await loadTerm(env, new URL(req.url));
   const students = await env.db.query(`${STUDENT_SELECT} where st.term_id = $1 order by hs.sort, hg.sort, st.kana nulls last, st.name`, [term.id]);
-  const recs = await env.db.query('select r.* from records r join students st on st.id = r.student_id where st.term_id = $1', [term.id]);
+  const recs = await env.db.query('select r.*, m.place as mk_place from records r join students st on st.id = r.student_id left join makeups m on m.student_id = r.student_id and m.round = r.round where st.term_id = $1', [term.id]);
   const map = new Map(recs.map(r => [`${r.student_id}:${r.round}`, r]));
   const header = ['コマ', 'GA', '名前', 'ヨミ', 'ニックネーム'];
   // 第0回（自由参加）は出欠とメモだけ。タイピング・クイズはその回があるときだけ列を作る
@@ -123,7 +123,7 @@ async function recordsCsv(env, req) {
     const row = [s.slotCode, s.gaName, s.name, s.kana, s.nickname];
     for (const r of term.rounds) {
       const x = map.get(`${s.id}:${r}`);
-      row.push(...cols(r).map(c => (c === 'typing' ? (x?.typing == null ? null : Number(x.typing)) : c === 'attendance' ? attendanceLabel(x?.attendance) : x?.[c])));
+      row.push(...cols(r).map(c => (c === 'typing' ? (x?.typing == null ? null : Number(x.typing)) : c === 'attendance' ? attendanceLabel(x?.attendance, x?.mk_place) : x?.[c])));
     }
     rows.push(row);
   }
@@ -140,7 +140,7 @@ async function rosterCsv(env, req) {
   const rows = [['コマ', 'GA', '区分', '名前', 'ヨミ', 'ニックネーム', '出欠', 'タイピング', 'クイズ', 'メモ', '補講先・元の班']];
   for (const slot of slots) {
     for (const g of await rosterFor(env.db, { termId: term.id, slotId: slot.id, round })) {
-      const line = (m, kind, extra) => rows.push([slot.code, g.gaName, kind, m.name, m.kana, m.nickname, attendanceLabel(m.record?.attendance), m.record?.typing, m.record?.quiz, m.record?.note, extra]);
+      const line = (m, kind, extra) => rows.push([slot.code, g.gaName, kind, m.name, m.kana, m.nickname, attendanceLabel(m.record?.attendance, m.makeup?.place), m.record?.typing, m.record?.quiz, m.record?.note, extra]);
       for (const m of g.members) line(m, '班員', m.makeup ? `補講先：${m.makeup.hostLabel || m.makeup.place}` : null);
       for (const m of g.guests) line(m, '補講で来る人', `元の班：${m.homeLabel}`);
     }

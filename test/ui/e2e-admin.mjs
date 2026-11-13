@@ -98,7 +98,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await shot(page, 'admin-stats');
   });
 
-  await check('補講タブ：未定の人の場所を変えられる', async page => {
+  await check('補講タブ：振替先未定の人の振替先GAを変えられる', async page => {
     const ueda = f.students.find(s => s.name.startsWith('上田'));
     await env.db.query(`insert into makeups(student_id, round, place) values ($1, 7, '未定')`, [ueda.id]);
     await env.db.query(`insert into records(student_id, round, attendance) values ($1, 7, '欠席・補講予定')`, [ueda.id]);
@@ -111,7 +111,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await r.waitFor({ state: 'detached' }); // 「未定」で絞り込んでいるので一覧から消える
     await page.locator('#mkStatus').selectOption('');
     await r.locator('.chip', { hasText: '予定' }).waitFor();
-    await page.locator('#mkList tr', { hasText: '江藤 四' }).locator('.chip', { hasText: '済' }).waitFor();
+    await page.locator('#mkList tr', { hasText: '江藤 四' }).filter({ hasText: '第2回' }).locator('.chip', { hasText: '済' }).waitFor();
     await shot(page, 'admin-makeups');
   });
 

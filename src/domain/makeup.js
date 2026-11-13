@@ -12,7 +12,8 @@ export const ATTENDANCE_LABEL = {
   '欠席・補講済み': '当日欠席・補講済み',
   '欠席・補講できず': '当日欠席・補講できず',
 };
-export const attendanceLabel = a => (a == null ? a : ATTENDANCE_LABEL[a] || a);
+/** 出欠の呼び方。△は振替先が決まっているかどうかで変える（makeupPlace：'他班'・'個別'・'未定'） */
+export const attendanceLabel = (a, makeupPlace) => (a == null ? a : a === '欠席・補講予定' && makeupPlace === '未定' ? '当日欠席・振替先未定' : ATTENDANCE_LABEL[a] || a);
 
 export function makeupStatus(makeup, record) {
   if (record && ATTENDED.includes(record.attendance)) return '済';

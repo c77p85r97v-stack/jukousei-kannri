@@ -95,14 +95,23 @@ async function saveRecord(env, req) {
       if (a != null && !SELECTABLE.includes(a)) throw new HttpError(400, '出欠の区分が不正です（△×は「補講」から付けてください）');
       if (a != null && round === FREE_ROUND && !FREE_ATTENDANCE.includes(a)) throw new HttpError(400, '第0回は自由参加なので、来た人に「出席」をつけるだけです');
       patch.attendance = a;
-      // 補講がある人（できなかった以外）に出席系を付けたら、当日欠席が分かるよう「補講済み」として残す
-      if (a != null && ATTENDED.includes(a) && (await hasMakeup(t, studentId, round))) patch.attendance = MAKEUP_DONE;
+      // 補講がある人は、出欠を補講の状態に合わせる（当日欠席と補講が食い違わないように）
+      //  ・補講予定：出席系を選んだら「補講済み」、当日欠席・未入力なら△（振替済み／振替先未定）
+      //  ・補講できず：出席系は選べない（補講の「変更」で振替先を選び直す）、当日欠席・未入力なら×
+      const mk = await makeupOf(t, studentId, round);
+      if (mk && !mk.failed) patch.attendance = a != null && ATTENDED.includes(a) ? MAKEUP_DONE : '欠席・補講予定';
+      if (mk && mk.failed) {
+        if (a != null && ATTENDED.includes(a)) throw new HttpError(400, '補講できずになっています。受けた場合は、補講の「変更」で振替先を選び直してください');
+        patch.attendance = '欠席・補講できず';
+      }
     }
     if (patch.typing != null && !('attendance' in b)) {
       const [cur] = await t.query('select attendance from records where student_id=$1 and round=$2', [studentId, round]);
       // 未入力なら出席、△（補講予定）なら補講済みにする。当日欠席と×はそのまま残す。
-      if (!cur || cur.attendance == null) patch.attendance = (await hasMakeup(t, studentId, round)) ? MAKEUP_DONE : '出席';
-      else if (cur.attendance === '欠席・補講予定') patch.attendance = MAKEUP_DONE;
+      if (!cur || cur.attendance == null) {
+        const mk = await makeupOf(t, studentId, round);
+        patch.attendance = mk ? (mk.failed ? '欠席・補講できず' : MAKEUP_DONE) : '出席';
+      } else if (cur.attendance === '欠席・補講予定') patch.attendance = MAKEUP_DONE;
     }
     const row = await writeRecord(t, { studentId, round, patch, version: b.version ?? 0, operatorId: op.id });
     return { record: publicRecord(row) };
@@ -151,9 +160,9 @@ async function getRoster(env, req) {
   });
 }
 
-async function hasMakeup(t, studentId, round) {
-  const [m] = await t.query('select 1 from makeups where student_id=$1 and round=$2 and not failed', [studentId, round]);
-  return !!m;
+async function makeupOf(t, studentId, round) {
+  const [m] = await t.query('select failed from makeups where student_id=$1 and round=$2', [studentId, round]);
+  return m || null;
 }
 
 async function setNickname(env, req, m) {

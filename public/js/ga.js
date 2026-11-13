@@ -1,7 +1,7 @@
 // GA 画面：記録入力・補講・検索・名簿・集計
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { statsView, searchView, indivView, recordsView, lineDialog, slotRoundPicker, statusChip, placeText } = koshuViews;
+  const { statsView, searchView, indivView, recordsView, lineDialog, attLabel, slotRoundPicker, statusChip, placeText } = koshuViews;
 
   const me = await requireLogin();
   $('#whoName').textContent = `${me.name} さん`;
@@ -41,6 +41,9 @@
   const SELECTABLE = ['出席', '記録なし', '時間切れ', '欠席'];
   const LABEL = { 記録なし: '出席（記録なし）', 時間切れ: '出席（時間切れ）', 欠席: '当日欠席' };
   const AUTO_LABEL = { '欠席・補講予定': '△ 当日欠席・振替済み', '欠席・補講できず': '× 当日欠席・補講できず', '欠席・補講済み': '当日欠席・補講済み' };
+  const MARK = { '欠席・補講予定': '△ ', '欠席・補講できず': '× ' };
+  /** 自動で付く出欠の表示。△は振替先が決まっているかで変える */
+  const autoLabel = (a, mk) => (MARK[a] || '') + attLabel(a, mk);
   const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず', '欠席・補講済み'];
   const entry = $('#entry');
   let rows = [];
@@ -181,7 +184,8 @@
     row.version = rec ? rec.version : 0;
     const auto = row.att.querySelector('option[data-auto]');
     if (auto) auto.remove();
-    if (a && AUTO_LABEL[a]) row.att.append(h('option', { value: a, dataset: { auto: '1' }, disabled: true }, AUTO_LABEL[a]));
+    if (a && AUTO_LABEL[a]) row.att.append(h('option', { value: a, dataset: { auto: '1' }, disabled: true }, autoLabel(a, row.makeup)));
+    row.lastRecord = rec;
     row.att.value = str(a);
     if (row.typing) row.typing.value = row.saved.typing;
     if (row.quiz) row.quiz.value = row.saved.quiz;
@@ -258,9 +262,11 @@
           row.makeup = { ...row.makeup, status: ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席・補講済み'].includes(res.record.attendance) ? '済' : row.makeup.failed ? 'できず' : row.makeup.place === '未定' ? '未定' : '予定' };
           paintMakeup(row);
         }
+        syncSiblings(row);
       } catch (e) {
         if (e.status === 409 && e.data && 'latest' in e.data) {
           applyRecord(row, e.data.latest);
+          syncSiblings(row);
           row.retry = null;
           setState(row, 'conflict', 'ほかの人が先に更新しました（最新の内容を表示しています）');
         } else if (e.status === 401) {
@@ -281,6 +287,16 @@
     return row.saving;
   }
 
+  /** 同じ受講生が同じ画面に2回出ているとき（元の班と「補講で来る人」）、もう片方の行も同じ内容にそろえる */
+  function syncSiblings(row) {
+    for (const r of rows) {
+      if (r === row || r.m.studentId !== row.m.studentId || r.round !== row.round) continue;
+      r.makeup = row.makeup ? { ...row.makeup } : null;
+      if (!r.saving && !Object.keys(diff(r)).length) applyRecord(r, row.lastRecord);
+      paintMakeup(r);
+    }
+  }
+
   async function flushAll() {
     if (entry.contains(document.activeElement)) document.activeElement.blur();
     await Promise.all(rows.map(r => r.saving || save(r)));
@@ -296,6 +312,8 @@
   // ---------- 補講 ----------
   function paintMakeup(row) {
     if (row.grp) paintCounts(row.grp, row.data);
+    const auto = row.att.querySelector('option[data-auto]');
+    if (auto) auto.textContent = autoLabel(auto.value, row.makeup);
     const mk = row.makeup;
     const cell = row.mkCell;
     if (row.isGuest) {
@@ -329,6 +347,7 @@
       applyRecord(row, res.record);
       paintMakeup(row);
       setState(row, 'saved');
+      syncSiblings(row);
       return true;
     } catch (e) {
       if (e.status === 409) {
@@ -419,6 +438,7 @@
       applyRecord(row, res.record);
       paintMakeup(row);
       setState(row, 'saved');
+      syncSiblings(row);
       dlg.close();
     } catch (err) {
       $('#mkError').textContent = err.status === 409 ? 'ほかの人が先に変更しました。いちど閉じて「最新にする」を押してください' : err.message;

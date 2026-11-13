@@ -89,6 +89,11 @@ async function setPlace(env, req) {
       }
     }
     const before = await lockMakeup(t, studentId, round, b.version);
+    // その回に出席した人（当日の出席・記録なし・時間切れ）には、新しく補講を登録できない
+    if (!before) {
+      const [cur] = await t.query('select attendance from records where student_id=$1 and round=$2', [studentId, round]);
+      if (cur && ATTENDED.includes(cur.attendance) && cur.attendance !== MAKEUP_DONE) throw new HttpError(409, 'この回は出席になっています。補講を登録するときは、先に出欠を「当日欠席」にしてください');
+    }
     const by = indivNo === EXTRA_NO ? (before && before.indiv_no === EXTRA_NO && before.indiv_by ? before.indiv_by : op.id) : null;
     let m;
     if (before) {
@@ -112,6 +117,8 @@ async function fail(env, req) {
     const { studentId, round, term } = await common(t, b);
     const before = await lockMakeup(t, studentId, round, b.version);
     if (!before) throw new HttpError(404, '補講が登録されていません');
+    const [done] = await t.query('select 1 from records where student_id=$1 and round=$2 and attendance=$3', [studentId, round, MAKEUP_DONE]);
+    if (done) throw new HttpError(409, 'すでに補講済みです。受けていなかった場合は、出欠を「当日欠席」に直してから押してください');
     const [m] = await t.query('update makeups set failed=true, version=version+1 where id=$1 returning *', [before.id]);
     await audit(t, op.id, '補講できなかった', 'makeups', m.id, before, m);
     const rec = await setAttendance(t, studentId, round, '欠席・補講できず', op.id, '補講できなかった（×）');

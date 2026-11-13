@@ -25,7 +25,8 @@
     '欠席・補講済み': '当日欠席・補講済み',
     '欠席・補講できず': '当日欠席・補講できず',
   };
-  const attLabel = a => (a == null ? '' : ATT_LABEL[a] || a);
+  /** △は振替先が決まっているか（mk.place）で呼び方を変える */
+  const attLabel = (a, mk) => (a == null ? '' : a === '欠席・補講予定' && mk && mk.place === '未定' ? '当日欠席・振替先未定' : ATT_LABEL[a] || a);
   const placeText = m => (m.place === '他班' ? m.hostLabel : m.place === '個別' ? (m.indivLabel ? `個別 ${m.indivLabel}` : '個別（枠未定）') : '振替先未定');
 
   /** 「今日の曜日」に近いコマ（なければ先頭） */
@@ -354,7 +355,7 @@
                   boot.term.rounds.map(r => {
                     const x = rec.get(r);
                     const m = mk.get(r);
-                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, attLabel(x?.attendance)), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
+                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, attLabel(x?.attendance, m)), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
                   }),
                 ),
               ),

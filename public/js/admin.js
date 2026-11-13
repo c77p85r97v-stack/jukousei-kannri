@@ -240,7 +240,7 @@
               await tabs.makeups();
             }
           });
-          const att = h('select', { 'aria-label': `出欠 ${m.name}` }, h('option', { value: m.record && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance || '' : '' }, m.record && m.record.attendance && !SELECTABLE.includes(m.record.attendance) ? attLabel(m.record.attendance) : '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, ATT_LABEL[a] || a)));
+          const att = h('select', { 'aria-label': `出欠 ${m.name}` }, h('option', { value: m.record && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance || '' : '' }, m.record && m.record.attendance && !SELECTABLE.includes(m.record.attendance) ? attLabel(m.record.attendance, m) : '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, ATT_LABEL[a] || a)));
           if (m.record && SELECTABLE.includes(m.record.attendance)) att.value = m.record.attendance;
           att.addEventListener('change', () => SELECTABLE.includes(att.value) && saveRecord({ attendance: att.value }));
           const typing = term.typing_rounds.includes(m.round) ? h('input', { class: 'typing', style: 'width:80px;text-align:right', inputMode: 'decimal', value: m.record?.typing ?? '', 'aria-label': `タイピング ${m.name}` }) : null;
