@@ -116,3 +116,17 @@ test('CSV cells that look like formulas are neutralised', async () => {
   assert.ok(r.text.includes(`,'+1 @x,`));
   assert.ok(r.text.includes(',150,'));
 });
+
+test('records.csv shows attendance in the words used on screen', async () => {
+  const { env, f, ga, s } = await setup();
+  await call(env, 'POST', '/api/makeups', { studentId: s('青木').id, round: 2, place: '未定', version: 0 }, ga);
+  await call(env, 'POST', '/api/makeups', { studentId: s('井上').id, round: 2, place: '未定', version: 0 }, ga);
+  const [cur] = await env.db.query('select version from records where student_id=$1 and round=2', [s('井上').id]);
+  await call(env, 'POST', '/api/records', { studentId: s('井上').id, round: 2, typing: 140, version: cur.version }, ga);
+  await call(env, 'POST', '/api/records', { studentId: s('上田').id, round: 2, attendance: '欠席', version: 0 }, ga);
+  const text = (await call(env, 'GET', `/api/export/records.csv?termId=${f.term.id}`, undefined, ga)).text;
+  const line = name => text.split('\r\n').find(l => l.includes(name));
+  assert.match(line('青木 一'), /当日欠席・振替済み/);
+  assert.match(line('井上 二'), /当日欠席・補講済み,140/);
+  assert.match(line('上田 三'), /,当日欠席,/);
+});

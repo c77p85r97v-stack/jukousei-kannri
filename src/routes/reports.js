@@ -1,5 +1,6 @@
 // 集計・検索・操作履歴・CSV
 import { json, HttpError, intParam, csvResponse } from '../lib/http.js';
+import { attendanceLabel } from '../domain/makeup.js';
 import { requireStaff, requireAdmin } from '../lib/auth.js';
 import { computeStats } from '../domain/stats.js';
 import { currentGroupSql, rosterFor } from '../domain/roster.js';
@@ -122,7 +123,7 @@ async function recordsCsv(env, req) {
     const row = [s.slotCode, s.gaName, s.name, s.kana, s.nickname];
     for (const r of term.rounds) {
       const x = map.get(`${s.id}:${r}`);
-      row.push(...cols(r).map(c => (c === 'typing' ? (x?.typing == null ? null : Number(x.typing)) : x?.[c])));
+      row.push(...cols(r).map(c => (c === 'typing' ? (x?.typing == null ? null : Number(x.typing)) : c === 'attendance' ? attendanceLabel(x?.attendance) : x?.[c])));
     }
     rows.push(row);
   }
@@ -139,7 +140,7 @@ async function rosterCsv(env, req) {
   const rows = [['コマ', 'GA', '区分', '名前', 'ヨミ', 'ニックネーム', '出欠', 'タイピング', 'クイズ', 'メモ', '補講先・元の班']];
   for (const slot of slots) {
     for (const g of await rosterFor(env.db, { termId: term.id, slotId: slot.id, round })) {
-      const line = (m, kind, extra) => rows.push([slot.code, g.gaName, kind, m.name, m.kana, m.nickname, m.record?.attendance, m.record?.typing, m.record?.quiz, m.record?.note, extra]);
+      const line = (m, kind, extra) => rows.push([slot.code, g.gaName, kind, m.name, m.kana, m.nickname, attendanceLabel(m.record?.attendance), m.record?.typing, m.record?.quiz, m.record?.note, extra]);
       for (const m of g.members) line(m, '班員', m.makeup ? `補講先：${m.makeup.hostLabel || m.makeup.place}` : null);
       for (const m of g.guests) line(m, '補講で来る人', `元の班：${m.homeLabel}`);
     }

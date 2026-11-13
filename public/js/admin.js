@@ -1,7 +1,7 @@
 // 管理者画面
 (async () => {
   const { api, $, $$, h, toast, newId, requireLogin, logout } = koshu;
-  const { rosterView, statsView, indivView, recordsView, lineDialog, statusChip } = koshuViews;
+  const { rosterView, statsView, indivView, recordsView, lineDialog, statusChip, attLabel } = koshuViews;
 
   const me = await requireLogin('admin');
   $('#whoName').textContent = `${me.name} さん（管理者）`;
@@ -199,7 +199,7 @@
           h('span', { class: 'grow' }),
           btn('更新', () => tabs.makeups(), ''),
         ),
-        h('p', { class: 'note' }, '振替先GAを選び直すと、補講先の名簿に自動で反映されます。個別補講で受けた人は、ここで出欠とタイピングを入れると「済」になり、出欠は「欠席・補講済み」として残ります。'),
+        h('p', { class: 'note' }, '振替先GAを選び直すと、補講先の名簿に自動で反映されます。個別補講で受けた人は、ここで出欠とタイピングを入れると「済」になり、出欠は「当日欠席・補講済み」として残ります。'),
         h('div', { id: 'mkBox' }),
       );
     }
@@ -240,7 +240,7 @@
               await tabs.makeups();
             }
           });
-          const att = h('select', { 'aria-label': `出欠 ${m.name}` }, h('option', { value: m.record && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance || '' : '' }, m.record && m.record.attendance && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance : '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, ATT_LABEL[a] || a)));
+          const att = h('select', { 'aria-label': `出欠 ${m.name}` }, h('option', { value: m.record && !SELECTABLE.includes(m.record.attendance) ? m.record.attendance || '' : '' }, m.record && m.record.attendance && !SELECTABLE.includes(m.record.attendance) ? attLabel(m.record.attendance) : '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, ATT_LABEL[a] || a)));
           if (m.record && SELECTABLE.includes(m.record.attendance)) att.value = m.record.attendance;
           att.addEventListener('change', () => SELECTABLE.includes(att.value) && saveRecord({ attendance: att.value }));
           const typing = term.typing_rounds.includes(m.round) ? h('input', { class: 'typing', style: 'width:80px;text-align:right', inputMode: 'decimal', value: m.record?.typing ?? '', 'aria-label': `タイピング ${m.name}` }) : null;

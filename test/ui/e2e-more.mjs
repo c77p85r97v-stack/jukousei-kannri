@@ -74,6 +74,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     await page.getByRole('button', { name: '決定' }).click();
     await row(page, '江藤 四').locator('.chip', { hasText: '△' }).waitFor();
     assert.match(await row(page, '江藤 四').innerText(), /火1 C/);
+    assert.equal(await row(page, '江藤 四').locator('select.att option:checked').innerText(), '△ 当日欠席・振替済み');
     await pick(page, '火1', 2);
     const guest = page.locator('#entry tr.guest', { hasText: '江藤 四' });
     await guest.waitFor();
@@ -92,6 +93,7 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     assert.equal(await row(page, '江藤 四').locator('input.typing').inputValue(), '133.3');
     await row(page, '江藤 四').getByText('済', { exact: true }).waitFor();
     assert.equal(await row(page, '江藤 四').locator('select.att').inputValue(), '欠席・補講済み');
+    assert.equal(await row(page, '江藤 四').locator('select.att option:checked').innerText(), '当日欠席・補講済み');
   });
 
   await check('場所未定で登録 → できなかった → ×', async page => {

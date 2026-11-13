@@ -15,6 +15,17 @@
     const [cls, text] = STATUS_CHIP[status] || ['none', status];
     return h('span', { class: `chip ${cls}` }, text);
   }
+  // 出欠の呼び方（保存する値はそのまま。サーバーの ATTENDANCE_LABEL と同じ）
+  const ATT_LABEL = {
+    記録なし: '出席（記録なし）',
+    '出席・記録なし': '出席（記録なし）',
+    時間切れ: '出席（時間切れ）',
+    欠席: '当日欠席',
+    '欠席・補講予定': '当日欠席・振替済み',
+    '欠席・補講済み': '当日欠席・補講済み',
+    '欠席・補講できず': '当日欠席・補講できず',
+  };
+  const attLabel = a => (a == null ? '' : ATT_LABEL[a] || a);
   const placeText = m => (m.place === '他班' ? m.hostLabel : m.place === '個別' ? (m.indivLabel ? `個別 ${m.indivLabel}` : '個別（枠未定）') : '振替先未定');
 
   /** 「今日の曜日」に近いコマ（なければ先頭） */
@@ -175,7 +186,7 @@
     paint();
     root.replaceChildren(
       h('div', { class: 'bar' }, seg, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: () => load() }, '最新にする')),
-      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数。「記録なし」「時間切れ」は来たけど数字がない人、第0回の〇は参加、△は補講予定、×は補講できず、「補講済み」は当日欠席して補講で受けた人（数字があれば数字）。'),
+      h('p', { class: 'note' }, '見るだけの画面です。直すときは「記録入力」から。数字はタイピングの秒数。「記録なし」「時間切れ」は来たけど数字がない人、第0回の〇は参加、△は当日欠席・振替済み（補講はまだ）、×は補講できず、「補講済み」は当日欠席して補講で受けた人（数字があれば数字）。'),
       body,
     );
     async function load() {
@@ -343,7 +354,7 @@
                   boot.term.rounds.map(r => {
                     const x = rec.get(r);
                     const m = mk.get(r);
-                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, ({ 欠席: '当日欠席', 記録なし: '出席（記録なし）', '出席・記録なし': '出席（記録なし）', 時間切れ: '出席（時間切れ）', '欠席・補講済み': '欠席・補講済み' })[x?.attendance] || x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
+                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, attLabel(x?.attendance)), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
                   }),
                 ),
               ),
@@ -445,5 +456,5 @@
     }
   }
 
-  window.koshuViews = { rosterView, statsView, searchView, indivView, recordsView, lineDialog, slotRoundPicker, statusChip, placeText, pct, fix1 };
+  window.koshuViews = { rosterView, statsView, searchView, indivView, recordsView, lineDialog, slotRoundPicker, attLabel, statusChip, placeText, pct, fix1 };
 })();
