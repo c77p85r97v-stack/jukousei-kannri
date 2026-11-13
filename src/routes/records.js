@@ -5,10 +5,12 @@ import { audit } from '../lib/audit.js';
 import { normNumber, normText } from '../lib/normalize.js';
 import { once } from '../lib/once.js';
 import { rosterFor, isEnrolled } from '../domain/roster.js';
-import { ATTENDED } from '../domain/makeup.js';
 import { activeTerm } from './auth.js';
 
 export const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席'];
+/** 第0回は自由参加：来た人に出席をつけるだけ（欠席・タイピング・クイズ・補講なし）。 */
+export const FREE_ROUND = 0;
+export const FREE_ATTENDANCE = ['出席'];
 
 export const publicRecord = r =>
   r && {
@@ -90,11 +92,13 @@ async function saveRecord(env, req) {
     if ('attendance' in b) {
       const a = b.attendance === '' ? null : b.attendance;
       if (a != null && !SELECTABLE.includes(a)) throw new HttpError(400, '出欠の区分が不正です（△×は「補講」から付けてください）');
+      if (a != null && round === FREE_ROUND && !FREE_ATTENDANCE.includes(a)) throw new HttpError(400, '第0回は自由参加なので、来た人に「出席」をつけるだけです');
       patch.attendance = a;
     }
     if (patch.typing != null && !('attendance' in b)) {
       const [cur] = await t.query('select attendance from records where student_id=$1 and round=$2', [studentId, round]);
-      if (!cur || !ATTENDED.includes(cur.attendance)) patch.attendance = '出席';
+      // 未入力か△（補講予定）のときだけ出席にする。当日欠席と×はそのまま残す。
+      if (!cur || cur.attendance == null || cur.attendance === '欠席・補講予定') patch.attendance = '出席';
     }
     const row = await writeRecord(t, { studentId, round, patch, version: b.version ?? 0, operatorId: op.id });
     return { record: publicRecord(row) };
@@ -119,8 +123,26 @@ async function getRoster(env, req) {
     round,
     isTypingRound: term.typing_rounds.includes(round),
     isQuizRound: term.quiz_rounds.includes(round),
+    isFreeRound: round === FREE_ROUND,
     groups,
   });
+}
+
+async function setNickname(env, req, m) {
+  const op = await requireStaff(env, req);
+  const id = Number(m[1]);
+  const b = await readJson(req);
+  const nickname = normText(b.nickname);
+  if (nickname && nickname.length > 50) throw new HttpError(400, 'ニックネームが長すぎます');
+  return json(
+    await env.db.tx(async t => {
+      const [before] = await t.query('select id, nickname from students where id=$1 for update', [id]);
+      if (!before) throw new HttpError(404, '受講生が見つかりません');
+      const [row] = await t.query('update students set nickname=$1 where id=$2 returning id, nickname', [nickname, id]);
+      await audit(t, op.id, 'ニックネームの変更', 'students', id, before, row);
+      return { studentId: id, nickname: row.nickname };
+    }),
+  );
 }
 
 export { activeTerm };
@@ -128,4 +150,5 @@ export { activeTerm };
 export const routes = [
   ['GET', /^\/api\/roster$/, getRoster],
   ['POST', /^\/api\/records$/, saveRecord],
+  ['POST', /^\/api\/students\/(\d+)\/nickname$/, setNickname],
 ];

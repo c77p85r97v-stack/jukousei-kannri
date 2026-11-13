@@ -8,7 +8,9 @@ const ratio = (a, b) => (b > 0 ? a / b : null);
 export async function computeStats(db, termId) {
   const [term] = await db.query('select * from terms where id=$1', [termId]);
   if (!term) return null;
-  const rounds = term.rounds;
+  // 第0回は自由参加：参加人数だけ別に数え、受講率・解約の基準には入れない
+  const FREE = 0;
+  const rounds = term.rounds.filter(r => r !== FREE);
   const lastRound = rounds[rounds.length - 1];
 
   // 受講生 × 回：その回の班・在籍・記録
@@ -33,6 +35,9 @@ export async function computeStats(db, termId) {
     byStudent.get(c.id)[c.round] = c;
   }
   for (const r of rounds) attendanceRate[r].rate = ratio(attendanceRate[r].attended, attendanceRate[r].enrolled);
+  const freeRound = term.rounds.includes(FREE)
+    ? { round: FREE, attended: Number((await db.query(`select count(*) as n from records r join students st on st.id = r.student_id where st.term_id = $1 and r.round = $2 and r.attendance = any($3)`, [termId, FREE, ATTENDED]))[0].n) }
+    : null;
 
   // 解約
   const wd = await db.query(
@@ -51,8 +56,9 @@ export async function computeStats(db, termId) {
   // 初期受講生数：設定があればそれ、なければ登録されている受講生の人数（最初の回の前に解約した人も含む）
   const initialCount = term.initial_count ?? byStudent.size;
   const withdrawn = wd.length;
-  // 最初の回から一度も受けずに解約した人（旧シートの「第1回未受講者」）
-  const neverAttended = rounds.length ? withdrawnByRound[rounds[0]] || 0 : 0;
+  // 第1回から一度も受けずに解約した人（旧シートの「第1回未受講者」）。第0回からの解約も含む。
+  const firstRound = rounds[0];
+  const neverAttended = firstRound == null ? 0 : wd.filter(w => w.from_round <= firstRound).length;
 
   // コマ移動
   const tr = await db.query(
@@ -124,6 +130,7 @@ export async function computeStats(db, termId) {
     transfers: tr.length,
     transfersBySlot,
     attendanceRate,
+    freeRound,
     groups,
   };
 }

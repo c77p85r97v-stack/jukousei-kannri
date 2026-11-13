@@ -38,7 +38,9 @@
 
   // ---------- 記録入力 ----------
   const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席'];
+  const LABEL = { 欠席: '当日欠席' };
   const AUTO_LABEL = { '欠席・補講予定': '△ 欠席・補講予定', '欠席・補講できず': '× 欠席・補講できず' };
+  const ABSENT = ['欠席', '欠席・補講予定', '欠席・補講できず'];
   const entry = $('#entry');
   let rows = [];
   let current = null; // { slotId, round, data }
@@ -78,27 +80,30 @@
       entry.replaceChildren(h('p', { class: 'empty' }, 'このコマにはまだ班がありません'));
       return;
     }
-    const cols = 4 + (data.isTypingRound ? 1 : 0) + (data.isQuizRound ? 1 : 0) + 1;
+    const cols = 3 + (data.isTypingRound ? 1 : 0) + (data.isQuizRound ? 1 : 0) + 1 + (data.isFreeRound ? 0 : 1);
     entry.replaceChildren(
       ...data.groups.map(g => {
         const tbody = h('tbody', {});
-        for (const m of g.members) tbody.append(makeRow(m, data, false));
+        const counts = h('span', { class: 'note counts' });
+        const grp = { counts, rows: [] };
+        for (const m of g.members) tbody.append(makeRow(m, data, false, grp));
         if (g.guests.length) {
           tbody.append(h('tr', { class: 'subhead' }, h('td', { colSpan: cols }, `補講で来る人（${g.guests.length}人）`)));
           for (const m of g.guests) tbody.append(makeRow(m, data, true));
         }
+        paintCounts(grp, data);
         if (!g.members.length && !g.guests.length) tbody.append(h('tr', {}, h('td', { colSpan: cols, class: 'empty' }, '受講生がいません')));
         return h(
           'section',
           { class: 'group' },
-          h('div', { class: 'group-head' }, h('h3', {}, `${data.slot.code}　${g.gaName} の班`), g.gaId === me.id ? h('span', { class: 'mine' }, '自分の班') : null, h('span', { class: 'note' }, `${g.members.length}人`)),
+          h('div', { class: 'group-head' }, h('h3', {}, `${data.slot.code}　${g.gaName} の班`), g.gaId === me.id ? h('span', { class: 'mine' }, '自分の班') : null, h('span', { class: 'note' }, `${g.members.length}人`), counts),
           h(
             'div',
             { class: 'scroll' },
             h(
               'table',
               { class: 'grid' },
-              h('thead', {}, h('tr', {}, h('th', {}, 'ニックネーム'), h('th', {}, '名前'), h('th', {}, '出欠'), data.isTypingRound ? h('th', {}, 'タイピング（秒）') : null, data.isQuizRound ? h('th', {}, 'クイズ（点）') : null, h('th', { style: 'width:28%' }, 'メモ'), h('th', {}, '補講'))),
+              h('thead', {}, h('tr', {}, h('th', {}, 'ニックネーム'), h('th', {}, '名前'), h('th', {}, '出欠'), data.isTypingRound ? h('th', {}, 'タイピング（秒）') : null, data.isQuizRound ? h('th', {}, 'クイズ（点）') : null, h('th', { style: 'width:28%' }, 'メモ'), data.isFreeRound ? null : h('th', {}, '補講'))),
               tbody,
             ),
           ),
@@ -107,9 +112,24 @@
     );
   }
 
-  function makeRow(m, data, isGuest) {
-    const row = { m, isGuest, round: data.round, version: m.record ? m.record.version : 0, makeup: m.makeup, saving: null, again: false, retry: null, saved: {} };
-    const att = h('select', { class: 'att', 'aria-label': `出欠 ${m.name}` }, h('option', { value: '' }, '（未入力）'), SELECTABLE.map(a => h('option', { value: a }, a)));
+  /** 班の見出しの「欠席 N人・補講 M人」 */
+  function paintCounts(grp, data) {
+    if (data.isFreeRound) {
+      const n = grp.rows.filter(r => r.saved.attendance === '出席').length;
+      grp.counts.textContent = `参加 ${n}人`;
+      return;
+    }
+    const absent = grp.rows.filter(r => ABSENT.includes(r.saved.attendance)).length;
+    const mk = grp.rows.filter(r => r.makeup);
+    const done = mk.filter(r => r.makeup.status === '済').length;
+    grp.counts.textContent = `欠席 ${absent}人・補講 ${mk.length}人${mk.length ? `（済 ${done}）` : ''}`;
+  }
+
+  function makeRow(m, data, isGuest, grp = null) {
+    const row = { m, isGuest, grp, data, round: data.round, version: m.record ? m.record.version : 0, makeup: m.makeup, saving: null, again: false, retry: null, saved: {} };
+    const choices = data.isFreeRound ? ['出席'] : SELECTABLE;
+    const att = h('select', { class: 'att', 'aria-label': `出欠 ${m.name}` }, h('option', { value: '' }, data.isFreeRound ? '（来ていない）' : '（未入力）'), choices.map(a => h('option', { value: a }, LABEL[a] || a)));
+    const nick = h('input', { class: 'nick', autocomplete: 'off', maxLength: 50, value: m.nickname || '', 'aria-label': `ニックネーム ${m.name}` });
     const typing = data.isTypingRound ? h('input', { class: 'typing', inputMode: 'decimal', autocomplete: 'off', 'aria-label': `タイピング ${m.name}` }) : null;
     const quiz = data.isQuizRound ? h('input', { class: 'quiz', inputMode: 'numeric', autocomplete: 'off', 'aria-label': `クイズ ${m.name}` }) : null;
     const note = h('input', { class: 'note', autocomplete: 'off', maxLength: 200, 'aria-label': `メモ ${m.name}` });
@@ -118,17 +138,19 @@
     const tr = h(
       'tr',
       { class: isGuest ? 'guest' : null, dataset: { student: m.studentId } },
-      h('td', {}, m.nickname || ''),
+      h('td', {}, nick),
       h('td', {}, m.name, h('div', { class: 'sub' }, m.kana || ''), msg),
       h('td', {}, att),
       typing ? h('td', {}, typing) : null,
       quiz ? h('td', {}, quiz) : null,
       h('td', {}, note),
-      mkCell,
+      data.isFreeRound ? null : mkCell,
     );
-    Object.assign(row, { tr, att, typing, quiz, note, msg, mkCell });
+    Object.assign(row, { tr, att, typing, quiz, note, nick, msg, mkCell });
+    if (grp && !isGuest) grp.rows.push(row);
     applyRecord(row, m.record);
     paintMakeup(row);
+    nick.addEventListener('change', () => saveNickname(row));
 
     att.addEventListener('change', () => save(row));
     tr.addEventListener('focusout', e => {
@@ -163,6 +185,21 @@
     if (row.typing) row.typing.value = row.saved.typing;
     if (row.quiz) row.quiz.value = row.saved.quiz;
     row.note.value = row.saved.note;
+    if (row.grp) paintCounts(row.grp, row.data);
+  }
+
+  async function saveNickname(row) {
+    const v = row.nick.value.trim();
+    if (v === (row.m.nickname || '')) return;
+    try {
+      const res = await api.post(`/api/students/${row.m.studentId}/nickname`, { nickname: v });
+      row.m.nickname = res.nickname;
+      row.nick.value = res.nickname || '';
+      setState(row, 'saved');
+    } catch (e) {
+      if (e.status === 401) return location.replace('/');
+      setState(row, 'failed', e.message);
+    }
   }
 
   function diff(row) {
@@ -257,6 +294,7 @@
 
   // ---------- 補講 ----------
   function paintMakeup(row) {
+    if (row.grp) paintCounts(row.grp, row.data);
     const mk = row.makeup;
     const cell = row.mkCell;
     if (row.isGuest) {

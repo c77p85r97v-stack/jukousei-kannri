@@ -53,7 +53,7 @@ test('typing on round 0 → 400, quiz on round 3 → 400, round outside term →
   assert.equal((await save(a, { studentId: s('青木').id, round: 0, typing: 100 })).status, 400);
   assert.equal((await save(a, { studentId: s('青木').id, round: 3, quiz: 10 })).status, 400);
   assert.equal((await save(a, { studentId: s('青木').id, round: 9, attendance: '出席' })).status, 400);
-  assert.equal((await save(a, { studentId: s('青木').id, round: 0, quiz: 12, attendance: '出席' })).status, 200);
+  assert.equal((await save(a, { studentId: s('青木').id, round: 1, quiz: 12, attendance: '出席' })).status, 200);
 });
 
 test('full-width typing is accepted', async () => {
@@ -117,11 +117,11 @@ test('roster API shape and own group first', async () => {
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.groups.map(g => g.gaName), ['B', 'A']);
   assert.equal(r.body.isTypingRound, true);
-  assert.equal(r.body.isQuizRound, false);
+  assert.equal(r.body.isQuizRound, true);
   assert.equal(r.body.slot.code, '月');
   const r0 = await call(env, 'GET', `/api/roster?slotId=${f.slots['月'].id}&round=0`, undefined, b);
   assert.equal(r0.body.isTypingRound, false);
-  assert.equal(r0.body.isQuizRound, true);
+  assert.equal(r0.body.isQuizRound, false);
 });
 
 test('roster requires login', async () => {
@@ -136,4 +136,50 @@ test('missing or non-numeric ids → 400 not 500', async () => {
   assert.equal((await save(a, { studentId: 'x', round: 1 })).status, 400);
   assert.equal((await call(env, 'POST', '/api/makeups', { studentId: 'x', round: 1, place: '未定' }, a)).status, 400);
   assert.equal((await call(env, 'GET', '/api/roster?slotId=abc&round=1', undefined, a)).status, 400);
+});
+
+test('typing does not turn 当日欠席 into 出席', async () => {
+  const { s, a, save } = await setup();
+  const id = s('青木').id;
+  const first = await save(a, { studentId: id, round: 2, attendance: '欠席' });
+  const r = await save(a, { studentId: id, round: 2, typing: 120, version: first.body.record.version });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.record.attendance, '欠席');
+  assert.equal(r.body.record.typing, 120);
+});
+
+test('typing does not turn × (補講できず) into 出席', async () => {
+  const { env, s, a, save } = await setup();
+  const id = s('青木').id;
+  await call(env, 'POST', '/api/makeups', { studentId: id, round: 2, place: '未定', version: 0 }, a);
+  await call(env, 'POST', '/api/makeups/fail', { studentId: id, round: 2, version: 1 }, a);
+  const [cur] = await env.db.query('select version from records where student_id=$1 and round=2', [id]);
+  const r = await save(a, { studentId: id, round: 2, typing: 120, version: cur.version });
+  assert.equal(r.body.record.attendance, '欠席・補講できず');
+});
+
+test('typing turns △ (補講予定) into 出席 so the makeup becomes done', async () => {
+  const { env, s, a, save } = await setup();
+  const id = s('青木').id;
+  await call(env, 'POST', '/api/makeups', { studentId: id, round: 2, place: '未定', version: 0 }, a);
+  const [cur] = await env.db.query('select version from records where student_id=$1 and round=2', [id]);
+  const r = await save(a, { studentId: id, round: 2, typing: 120, version: cur.version });
+  assert.equal(r.body.record.attendance, '出席');
+});
+
+test('GA can set a nickname, with audit', async () => {
+  const { env, s, a } = await setup();
+  const id = s('青木').id;
+  const r = await call(env, 'POST', `/api/students/${id}/nickname`, { nickname: ' あおちゃん ' }, a);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.nickname, 'あおちゃん');
+  const [st] = await env.db.query('select nickname from students where id=$1', [id]);
+  assert.equal(st.nickname, 'あおちゃん');
+  const [log] = await env.db.query(`select * from audit_log where action='ニックネームの変更'`);
+  assert.equal(log.after_json.nickname, 'あおちゃん');
+});
+
+test('nickname needs login', async () => {
+  const { env, s } = await setup();
+  assert.equal((await call(env, 'POST', `/api/students/${s('青木').id}/nickname`, { nickname: 'x' })).status, 401);
 });

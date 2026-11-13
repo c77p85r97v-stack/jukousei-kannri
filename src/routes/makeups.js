@@ -5,7 +5,7 @@ import { audit } from '../lib/audit.js';
 import { once } from '../lib/once.js';
 import { isEnrolled, groupAt, currentGroupSql } from '../domain/roster.js';
 import { makeupStatus, ATTENDED } from '../domain/makeup.js';
-import { termOfStudent, assertRound, writeRecord, publicRecord } from './records.js';
+import { termOfStudent, assertRound, writeRecord, publicRecord, FREE_ROUND } from './records.js';
 import { activeTerm } from './auth.js';
 
 const PLACES = ['他班', '個別', '未定'];
@@ -47,6 +47,7 @@ async function common(t, b) {
   const round = Number(b.round);
   const term = await termOfStudent(t, studentId);
   assertRound(term, round);
+  if (round === FREE_ROUND) throw new HttpError(400, '第0回は自由参加なので補講はありません');
   if (!(await isEnrolled(t, studentId, round))) throw new HttpError(409, 'この受講生はこの回は解約済みです');
   return { studentId, round, term };
 }

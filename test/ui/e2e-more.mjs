@@ -23,12 +23,33 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     assert.equal(await row(page, '青木 一').locator('input.typing').inputValue(), '145.2');
   });
 
-  await check('自分の班が先頭に出る／第0回はタイピング欄がなくクイズ欄がある', async page => {
+  await check('自分の班が先頭に出る／第0回は自由参加（出席のみ・タイピングもクイズも補講もない）', async page => {
     await loginGaUi(page, 'B');
     await pick(page, '月', 0);
     assert.match(await page.locator('#entry .group-head').first().innerText(), /B/);
     assert.equal(await page.locator('#entry input.typing').count(), 0);
-    assert.ok((await page.locator('#entry input.quiz').count()) > 0);
+    assert.equal(await page.locator('#entry input.quiz').count(), 0);
+    assert.equal(await page.locator('#entry').getByRole('button', { name: '補講' }).count(), 0);
+    const opts = await row(page, '江藤 四').locator('select.att option').allInnerTexts();
+    assert.deepEqual(opts, ['（来ていない）', '出席']);
+    await row(page, '江藤 四').locator('select.att').selectOption('出席');
+    await page.locator('#entry .group-head').first().getByText('参加 1人').waitFor();
+  });
+
+  await check('「当日欠席」を選ぶと班の見出しの欠席数が増える／ニックネームを書き換えられる', async page => {
+    await loginGaUi(page, 'B');
+    await pick(page, '月', 6);
+    const opts = await row(page, '小川 五').locator('select.att option').allInnerTexts();
+    assert.ok(opts.includes('当日欠席'));
+    assert.ok(!opts.includes('欠席'));
+    await row(page, '小川 五').locator('select.att').selectOption('欠席');
+    await page.locator('#entry .group-head').first().getByText('欠席 1人・補講 0人').waitFor();
+    await row(page, '小川 五').locator('input.nick').fill('おがっち');
+    await row(page, '小川 五').locator('input.nick').press('Tab');
+    await row(page, '小川 五').and(page.locator('[data-state=saved]')).waitFor();
+    await page.reload();
+    await pick(page, '月', 6);
+    assert.equal(await row(page, '小川 五').locator('input.nick').inputValue(), 'おがっち');
   });
 
   await check('タイピングに文字を入れると行にエラーが出る', async page => {

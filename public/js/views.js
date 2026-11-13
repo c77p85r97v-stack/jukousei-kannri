@@ -133,7 +133,7 @@
         const codes = boot.slots.map(s => s.code);
         root.replaceChildren(
           h('div', { class: 'bar no-print' }, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: load }, '更新'), h('a', { class: 'button', href: `/api/export/stats.csv?termId=${boot.term.id}` }, '集計を CSV で保存'), h('a', { class: 'button', href: `/api/export/records.csv?termId=${boot.term.id}` }, '全記録を CSV で保存')),
-          h('div', { class: 'kpis' }, kpi('初期受講生数', st.initialCount), kpi('解約者数', st.withdrawn), kpi('継続率', pct(st.retentionRate)), kpi('継続率（最初の回から未受講の解約を除く）', pct(st.retentionRateExclNeverAttended)), kpi('解約率', pct(st.withdrawalRate)), kpi('コマ移動数', st.transfers)),
+          h('div', { class: 'kpis' }, kpi('初期受講生数', st.initialCount), kpi('解約者数', st.withdrawn), kpi('継続率', pct(st.retentionRate)), kpi('継続率（第1回から未受講の解約を除く）', pct(st.retentionRateExclNeverAttended)), kpi('解約率', pct(st.withdrawalRate)), kpi('コマ移動数', st.transfers), st.freeRound ? kpi(`第${st.freeRound.round}回（自由参加）の参加人数`, st.freeRound.attended) : null),
           h(
             'section',
             { class: 'card' },
@@ -145,10 +145,10 @@
                 'table',
                 { class: 'grid' },
                 h('thead', {}, h('tr', {}, h('th', {}, '回'), h('th', { class: 'num' }, '在籍'), h('th', { class: 'num' }, '受講'), h('th', { class: 'num' }, '受講率'), h('th', { class: 'num' }, 'この回から未受講の解約'))),
-                h('tbody', {}, boot.term.rounds.map(r => h('tr', {}, h('td', {}, `第${r}回`), h('td', { class: 'num' }, st.attendanceRate[r].enrolled), h('td', { class: 'num' }, st.attendanceRate[r].attended), h('td', { class: 'num' }, pct(st.attendanceRate[r].rate)), h('td', { class: 'num' }, st.withdrawnByRound[r] || 0)))),
+                h('tbody', {}, Object.keys(st.attendanceRate).map(Number).map(r => h('tr', {}, h('td', {}, `第${r}回`), h('td', { class: 'num' }, st.attendanceRate[r].enrolled), h('td', { class: 'num' }, st.attendanceRate[r].attended), h('td', { class: 'num' }, pct(st.attendanceRate[r].rate)), h('td', { class: 'num' }, st.withdrawnByRound[r] || 0)))),
               ),
             ),
-            h('p', { class: 'note' }, '受講率＝その回に在籍している人のうち、出席した人（〇・記録なし・時間切れ・補講済みを含む）の割合。'),
+            h('p', { class: 'note' }, '受講率＝その回に在籍している人のうち、出席した人（〇・記録なし・時間切れ・補講済みを含む）の割合。第0回は自由参加なので含めていません。'),
           ),
           h(
             'section',
@@ -235,7 +235,7 @@
                   boot.term.rounds.map(r => {
                     const x = rec.get(r);
                     const m = mk.get(r);
-                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
+                    return h('tr', {}, h('td', {}, `第${r}回`), h('td', {}, x?.attendance === '欠席' ? '当日欠席' : x?.attendance || ''), h('td', { class: 'num' }, x?.typing ?? ''), h('td', { class: 'num' }, x?.quiz ?? ''), h('td', {}, x?.note || ''), h('td', {}, m ? [statusChip(m.status), ' ', placeText(m)] : ''));
                   }),
                 ),
               ),

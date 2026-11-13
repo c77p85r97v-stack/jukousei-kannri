@@ -26,7 +26,7 @@ async function setup() {
   // 伸び：青木は第1回なし・第2回200→第8回150（+50）、井上は第1回100→第8回120（−20）
   await rec('青木', 2, '出席', 200);
   await rec('青木', 8, '出席', 150, 18);
-  await rec('青木', 0, '出席', null, 10);
+  await rec('青木', 1, '出席', null, 10);
   await rec('井上', 1, '出席', 100);
   await rec('井上', 8, '出席', 120);
   return { env, f, s };
@@ -49,7 +49,7 @@ test('attendance rate per round', async () => {
   assert.deepEqual(st.attendanceRate[3], { enrolled: 8, attended: 6, rate: 0.75 });
   assert.equal(st.attendanceRate[1].enrolled, 10);
   assert.equal(st.attendanceRate[2].enrolled, 9);
-  assert.deepEqual(Object.keys(st.attendanceRate).map(Number), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(Object.keys(st.attendanceRate).map(Number), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 test('typing and quiz gain per group', async () => {
@@ -87,7 +87,8 @@ test('empty term does not divide by zero', async () => {
   const st = await computeStats(env.db, t.id);
   assert.equal(st.initialCount, 0);
   assert.equal(st.retentionRate, null);
-  assert.equal(st.attendanceRate[0].rate, null);
+  assert.equal(st.attendanceRate[1].rate, null);
+  assert.deepEqual(st.freeRound, { round: 0, attended: 0 });
 });
 
 test('GET /api/stats is available to GA', async () => {
