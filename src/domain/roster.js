@@ -81,7 +81,12 @@ export async function rosterFor(db, { termId, slotId, round }) {
        from groups g join staff st on st.id = g.ga_id where g.slot_id = $1 order by g.sort, st.name`,
     [slotId],
   );
-  const byId = new Map(groups.map(g => [g.groupId, { ...g, members: [], guests: [] }]));
+  return rosterForGroups(db, { termId, round, groups });
+}
+
+/** 渡した班（{groupId, gaId, gaName}）の第 round 回の名簿。名簿の行は1回の SQL でまとめて取る。 */
+export async function rosterForGroups(db, { termId, round, groups }) {
+  const byId = new Map(groups.map(g => [g.groupId, { groupId: g.groupId, gaId: g.gaId, gaName: g.gaName, members: [], guests: [] }]));
   if (!groups.length) return [];
   const rows = await rosterRows(db, { termId, round, groupIds: groups.map(g => g.groupId) });
   const slots = rows.some(r => r.indiv_no != null) ? await indivSlots(db, termId, round) : [];
@@ -94,6 +99,25 @@ export async function rosterFor(db, { termId, slotId, round }) {
     byId.get(r.shown_group)[r.kind === 'guest' ? 'guests' : 'members'].push(m);
   }
   return [...byId.values()];
+}
+
+/** 第 round 回の全コマの名簿：[{slot:{id,code}, groups}]（コマの並び順、班のないコマも含む） */
+export async function rosterForRound(db, { termId, round }) {
+  const rows = await db.query(
+    `select s.id as "slotId", s.code, g.id as "groupId", g.ga_id as "gaId", st.name as "gaName"
+       from slots s left join groups g on g.slot_id = s.id left join staff st on st.id = g.ga_id
+      where s.term_id = $1 order by s.sort, s.id, g.sort, st.name`,
+    [termId],
+  );
+  const groups = rows.filter(r => r.groupId != null);
+  const all = new Map((await rosterForGroups(db, { termId, round, groups })).map(g => [g.groupId, g]));
+  const out = [];
+  for (const r of rows) {
+    let cur = out[out.length - 1];
+    if (!cur || cur.slot.id !== r.slotId) out.push((cur = { slot: { id: r.slotId, code: r.code }, groups: [] }));
+    if (r.groupId != null) cur.groups.push(all.get(r.groupId));
+  }
+  return out;
 }
 
 export { toMember };

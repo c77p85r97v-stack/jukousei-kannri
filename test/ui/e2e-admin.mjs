@@ -177,8 +177,13 @@ export async function run({ check, shot, BASE, env, f, loginGaUi, loginAdminUi, 
     const one = await page.pdf({ preferCSSPageSize: true, printBackground: true });
     writeFileSync('/tmp/e2e/roster.pdf', one);
     assert.deepEqual(pages(one), { n: 1, landscape: true });
+    let calls = 0;
+    page.on('request', r => r.url().includes('/api/roster') && calls++);
+    await page.locator('#rvSlotSeg').getByRole('button', { name: '火1', exact: true }).click();
+    await page.locator('#rosterView .rhead', { hasText: '火1' }).waitFor();
     await page.locator('#rvSlotSeg').getByRole('button', { name: 'すべて', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('#rosterView .rsheet').length === 9);
+    assert.equal(calls, 0, 'コマの切り替えは通信なしで表示する');
     const all = await page.pdf({ preferCSSPageSize: true, printBackground: true });
     writeFileSync('/tmp/e2e/roster-all.pdf', all);
     assert.deepEqual(pages(all), { n: 9, landscape: true });

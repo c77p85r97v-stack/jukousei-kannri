@@ -73,22 +73,32 @@
     });
     root.replaceChildren(
       h('div', { class: 'bar no-print' }, picker.slotSeg),
-      h('div', { class: 'bar no-print' }, picker.roundSeg, h('span', { class: 'grow' }), h('button', { type: 'button', class: 'primary', onclick: () => window.print() }, '印刷する'), csv),
+      h('div', { class: 'bar no-print' }, picker.roundSeg, h('span', { class: 'grow' }), h('button', { type: 'button', onclick: () => load(picker.slotId, picker.round, { fresh: true }) }, '最新にする'), h('button', { type: 'button', class: 'primary', onclick: () => window.print() }, '印刷する'), csv),
       body,
     );
-    async function load(slotId, round) {
+    // 1回分の全コマを1回の通信でまとめて取り、回ごとに覚えておく（コマの切り替えは通信なしで即表示）。
+    // 前に見た回はまず覚えている内容を出し、裏で最新を取って差し替える。
+    const cache = new Map();
+    let seq = 0;
+    async function load(slotId, round, { fresh = false } = {}) {
       csv.href = `/api/export/roster.csv?termId=${boot.term.id}&round=${round}`;
-      body.replaceChildren(h('p', { class: 'empty' }, '読み込み中…'));
+      const my = ++seq;
+      const show = data => {
+        if (my !== seq) return;
+        const targets = slotId === 'all' ? data.slots : data.slots.filter(x => x.slot.id === slotId);
+        body.replaceChildren(...targets.map(x => sheet(x.slot.code, round, { groups: x.groups })));
+      };
+      const hit = cache.get(round);
+      const cached = hit && hit.data;
+      if (cached) show(cached);
+      else body.replaceChildren(h('p', { class: 'empty' }, '読み込み中…'));
+      if (cached && !fresh && Date.now() - hit.at < 60000) return; // 1分以内に取った内容はそのまま使う
       try {
-        const targets = slotId === 'all' ? boot.slots : boot.slots.filter(s => s.id === slotId);
-        const sheets = [];
-        for (const s of targets) {
-          const data = await api.get(`/api/roster?slotId=${s.id}&round=${round}`);
-          sheets.push(sheet(s.code, round, data));
-        }
-        body.replaceChildren(...sheets);
+        const data = await api.get(`/api/roster/round?termId=${boot.term.id}&round=${round}`);
+        cache.set(round, { data, at: Date.now() });
+        show(data);
       } catch (e) {
-        body.replaceChildren(h('p', { class: 'error' }, e.message));
+        if (my === seq && !cached) body.replaceChildren(h('p', { class: 'error' }, e.message));
       }
     }
     // 前のスプレッドシートの「第N回」シートの形：A4 横 1枚にコマ1つ。
@@ -150,7 +160,7 @@
       );
     }
     picker.refresh();
-    return { refresh: picker.refresh };
+    return { refresh: () => load(picker.slotId, picker.round, { fresh: true }) };
   }
 
   // ---------- 記録閲覧（前のスプレッドシートの曜日シートの形・見るだけ） ----------

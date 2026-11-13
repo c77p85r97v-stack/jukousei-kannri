@@ -4,7 +4,7 @@ import { requireStaff } from '../lib/auth.js';
 import { audit } from '../lib/audit.js';
 import { normNumber, normText } from '../lib/normalize.js';
 import { once } from '../lib/once.js';
-import { rosterFor, isEnrolled } from '../domain/roster.js';
+import { rosterFor, rosterForRound, isEnrolled } from '../domain/roster.js';
 import { activeTerm } from './auth.js';
 
 export const SELECTABLE = ['出席', '出席・記録なし', '記録なし', '時間切れ', '欠席'];
@@ -106,14 +106,33 @@ async function saveRecord(env, req) {
   return json(result);
 }
 
+async function getRoundRoster(env, req) {
+  await requireStaff(env, req);
+  const url = new URL(req.url);
+  const round = intParam(url, 'round');
+  const termId = intParam(url, 'termId', { required: false });
+  const [term] = termId
+    ? await env.db.query('select id, name, rounds, typing_rounds, quiz_rounds from terms where id=$1', [termId])
+    : await env.db.query('select id, name, rounds, typing_rounds, quiz_rounds from terms where active');
+  if (!term) throw new HttpError(400, '年度がまだ作られていません');
+  assertRound(term, round);
+  return json({ term, round, slots: await rosterForRound(env.db, { termId: term.id, round }) });
+}
+
 async function getRoster(env, req) {
   const op = await requireStaff(env, req);
   const url = new URL(req.url);
   const slotId = intParam(url, 'slotId');
   const round = intParam(url, 'round');
-  const [slot] = await env.db.query('select s.id, s.code, s.term_id from slots s where s.id=$1', [slotId]);
-  if (!slot) throw new HttpError(404, 'コマが見つかりません');
-  const [term] = await env.db.query('select id, name, rounds, typing_rounds, quiz_rounds from terms where id=$1', [slot.term_id]);
+  // コマと年度は1回の SQL で取る（名簿は入力画面で何度も開くので、往復を減らす）
+  const [row] = await env.db.query(
+    `select s.id as slot_id, s.code, t.id, t.name, t.rounds, t.typing_rounds, t.quiz_rounds
+       from slots s join terms t on t.id = s.term_id where s.id = $1`,
+    [slotId],
+  );
+  if (!row) throw new HttpError(404, 'コマが見つかりません');
+  const slot = { id: row.slot_id, code: row.code };
+  const term = { id: row.id, name: row.name, rounds: row.rounds, typing_rounds: row.typing_rounds, quiz_rounds: row.quiz_rounds };
   assertRound(term, round);
   const groups = await rosterFor(env.db, { termId: term.id, slotId, round });
   groups.sort((x, y) => (y.gaId === op.id) - (x.gaId === op.id));
@@ -148,6 +167,7 @@ async function setNickname(env, req, m) {
 export { activeTerm };
 
 export const routes = [
+  ['GET', /^\/api\/roster\/round$/, getRoundRoster],
   ['GET', /^\/api\/roster$/, getRoster],
   ['POST', /^\/api\/records$/, saveRecord],
   ['POST', /^\/api\/students\/(\d+)\/nickname$/, setNickname],
